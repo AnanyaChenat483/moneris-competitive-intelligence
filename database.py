@@ -1,11 +1,11 @@
 """Supabase (PostgreSQL) persistence layer for the Competitive Intelligence Monitor.
 
 Tables must be created in Supabase before first run — execute schema.sql in the
-Supabase SQL Editor (app.supabase.com → SQL Editor).
+Supabase SQL Editor (app.supabase.com > SQL Editor).
 
 Credentials are read from environment variables:
   SUPABASE_URL   — project URL, e.g. https://xxxx.supabase.co
-  SUPABASE_KEY   — anon or service-role key from Project Settings → API
+  SUPABASE_KEY   — anon or service-role key from Project Settings > API
 """
 
 import os
@@ -72,12 +72,12 @@ def get_snapshot(competitor: str, page_type: str):
         if resp.data:
             row = resp.data[0]
             _log(
-                f"  → snapshot found: hash={row.get('content_hash', '')[:12]}… "
+                f"  -> snapshot found: hash={row.get('content_hash', '')[:12]}… "
                 f"text_len={len(row.get('content_text', ''))} updated_at={row.get('updated_at')}"
             )
             return row
         else:
-            _log(f"  → no snapshot found (resp.data={resp.data!r})")
+            _log(f"  -> no snapshot found (resp.data={resp.data!r})")
             return None
     except Exception as exc:
         _log(f"  ERROR in get_snapshot: {exc}")
@@ -90,7 +90,7 @@ def upsert_snapshot(competitor: str, page_type: str, url: str, page_title: str,
     original_len = len(content_text)
     if len(content_text) > 200_000:
         content_text = content_text[:200_000]
-        _log(f"upsert_snapshot: content_text truncated {original_len} → 200000 chars")
+        _log(f"upsert_snapshot: content_text truncated {original_len} -> 200000 chars")
 
     _log(
         f"upsert_snapshot({competitor!r}, {page_type!r}) "
@@ -109,7 +109,7 @@ def upsert_snapshot(competitor: str, page_type: str, url: str, page_title: str,
             },
             on_conflict="competitor,page_type",
         ).execute()
-        _log(f"  → upsert_snapshot done, rows_returned={len(resp.data or [])}")
+        _log(f"  -> upsert_snapshot done, rows_returned={len(resp.data or [])}")
     except Exception as exc:
         _log(f"  ERROR in upsert_snapshot: {exc}")
         raise
@@ -142,7 +142,7 @@ def insert_website_change(competitor: str, page_type: str, url: str, change_type
                 "diff": diff,
             }
         ).execute()
-        _log(f"  → insert_website_change done, rows_returned={len(resp.data or [])}")
+        _log(f"  -> insert_website_change done, rows_returned={len(resp.data or [])}")
     except Exception as exc:
         _log(f"  ERROR in insert_website_change: {exc}")
         raise
@@ -157,7 +157,7 @@ def get_website_changes(limit: int = 100, competitor: str = None, change_type: s
         if change_type and change_type != "All":
             q = q.eq("change_type", change_type)
         rows = q.order("detected_at", desc=True).order("id", desc=True).limit(limit).execute().data or []
-        _log(f"  → get_website_changes returned {len(rows)} row(s)")
+        _log(f"  -> get_website_changes returned {len(rows)} row(s)")
         return rows
     except Exception as exc:
         _log(f"  ERROR in get_website_changes: {exc}")
