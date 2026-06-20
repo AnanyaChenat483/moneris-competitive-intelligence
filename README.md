@@ -41,7 +41,7 @@ Tracks threat scores over time per competitor with a fully dark-themed Altair li
 |---|---|
 | Dashboard | [Streamlit](https://streamlit.io) |
 | AI Analysis | [Claude API](https://www.anthropic.com) — `claude-opus-4-8` with adaptive thinking |
-| Database | SQLite (via Python `sqlite3`) |
+| Database | [Supabase](https://supabase.com) (PostgreSQL) |
 | Web Scraping | `requests` + `BeautifulSoup4` |
 | App Reviews | `google-play-scraper` |
 | News | Google News RSS (no API key required) |
@@ -81,7 +81,7 @@ A score of **7–10** signals a competitor making aggressive moves worth immedia
 
 ## Setup
 
-**Requirements:** Python 3.11+, an [Anthropic API key](https://console.anthropic.com/)
+**Requirements:** Python 3.11+, an [Anthropic API key](https://console.anthropic.com/), a free [Supabase](https://supabase.com) project
 
 ```bash
 # 1. Clone the repository
@@ -95,17 +95,24 @@ source venv/bin/activate        # macOS / Linux
 
 # 3. Install dependencies
 pip install -r requirements.txt
-pip install google-play-scraper  # not in requirements.txt — install separately
 
-# 4. Add your Anthropic API key
+# 4. Create the Supabase tables
+#    Open your Supabase project → SQL Editor → paste and run schema.sql
+
+# 5. Add your credentials
 cp .env.example .env
-# Open .env and set: ANTHROPIC_API_KEY=sk-ant-...
+# Open .env and set:
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   SUPABASE_URL=https://your-project-ref.supabase.co
+#   SUPABASE_KEY=your_anon_or_service_role_key
 
-# 5. Run the dashboard
+# 6. Run the dashboard
 streamlit run app.py
 ```
 
-The app initializes its SQLite database and seeds historical event data automatically on first run. Open `http://localhost:8501`, then click **Run Full Scan** in the sidebar to populate live data.
+The app seeds historical event data automatically on first run. Open `http://localhost:8501`, then click **Run Full Scan** in the sidebar to populate live data.
+
+**Deploying to Streamlit Cloud:** Add `ANTHROPIC_API_KEY`, `SUPABASE_URL`, and `SUPABASE_KEY` under Settings → Secrets in your Streamlit Cloud app.
 
 ---
 
@@ -116,13 +123,14 @@ competitive-monitor/
 ├── app.py              # Streamlit dashboard (all five tabs)
 ├── scanner.py          # Scan orchestration — website → reviews → news → scoring
 ├── analyzer.py         # Claude API calls — all AI analysis and synthesis
-├── database.py         # SQLite persistence layer
+├── database.py         # Supabase persistence layer
 ├── scraper.py          # Website scraper (requests + BeautifulSoup)
 ├── play_reviews.py     # Google Play Store review fetcher
 ├── news_client.py      # Google News RSS client
 ├── seed_data.py        # Historical event seed data (2022–2025)
 ├── config.py           # Competitor URLs, app IDs, weights, model config
-├── .env.example        # API key template
+├── schema.sql          # Supabase table definitions (run once in SQL Editor)
+├── .env.example        # Credentials template
 └── requirements.txt
 ```
 
