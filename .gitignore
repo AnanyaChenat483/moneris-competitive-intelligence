@@ -1,0 +1,31 @@
+# Environment variables — never commit the API key
+.env
+
+# Database and runtime data
+data/
+*.db
+
+# Python bytecode and virtual environment
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Streamlit runtime logs (theme config in .streamlit/ is intentionally included)
+streamlit_out.txt
+streamlit_err.txt
+streamlit.log
+*.log
+
+# Claude Code session files
+.claude/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
