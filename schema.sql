@@ -1,6 +1,11 @@
 -- Moneris Competitive Intelligence Monitor — Supabase Schema
 -- Run this entire script in the Supabase SQL Editor (https://app.supabase.com → SQL Editor)
 -- before launching the app for the first time.
+--
+-- IMPORTANT: Row Level Security (RLS) is explicitly DISABLED on every table below.
+-- Without this, Supabase silently blocks all reads/writes when using the anon key,
+-- causing snapshots to never be found and changes to never be saved.
+-- If you later add authentication, re-enable RLS and add appropriate policies.
 
 -- Snapshots: latest scraped content hash per competitor page (one row per competitor+page_type pair)
 CREATE TABLE IF NOT EXISTS snapshots (
@@ -13,6 +18,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (competitor, page_type)
 );
+ALTER TABLE snapshots DISABLE ROW LEVEL SECURITY;
 
 -- Website changes: every detected content change that passed the impact threshold
 CREATE TABLE IF NOT EXISTS website_changes (
@@ -28,6 +34,7 @@ CREATE TABLE IF NOT EXISTS website_changes (
     segment_affected      TEXT NOT NULL,
     diff                  TEXT NOT NULL
 );
+ALTER TABLE website_changes DISABLE ROW LEVEL SECURITY;
 
 -- Review sentiment: Google Play Store analysis result per competitor per scan
 CREATE TABLE IF NOT EXISTS review_sentiment (
@@ -43,6 +50,7 @@ CREATE TABLE IF NOT EXISTS review_sentiment (
     source_breakdown     JSONB NOT NULL DEFAULT '{}',
     review_count         INTEGER NOT NULL
 );
+ALTER TABLE review_sentiment DISABLE ROW LEVEL SECURITY;
 
 -- News articles: competitor news scored for Moneris relevance; unique per competitor+url
 CREATE TABLE IF NOT EXISTS news_articles (
@@ -60,6 +68,7 @@ CREATE TABLE IF NOT EXISTS news_articles (
     source_weight         TEXT NOT NULL,
     UNIQUE (competitor, url)
 );
+ALTER TABLE news_articles DISABLE ROW LEVEL SECURITY;
 
 -- Threat scores: weighted composite score per competitor per scan run
 -- Column is named reddit_component for historical reasons; it stores the app review sentiment component.
@@ -74,6 +83,7 @@ CREATE TABLE IF NOT EXISTS threat_scores (
     smb_relevance_component     REAL NOT NULL,
     reason                      TEXT NOT NULL
 );
+ALTER TABLE threat_scores DISABLE ROW LEVEL SECURITY;
 
 -- Comparison cards: AI-generated Moneris vs all competitors card per scan
 CREATE TABLE IF NOT EXISTS comparison_cards (
@@ -83,6 +93,7 @@ CREATE TABLE IF NOT EXISTS comparison_cards (
     top_threats     JSONB NOT NULL DEFAULT '[]',
     top_advantages  JSONB NOT NULL DEFAULT '[]'
 );
+ALTER TABLE comparison_cards DISABLE ROW LEVEL SECURITY;
 
 -- Historical events: real competitive events 2022-2025 used to seed the Trends chart baseline
 CREATE TABLE IF NOT EXISTS historical_events (
@@ -94,6 +105,7 @@ CREATE TABLE IF NOT EXISTS historical_events (
     source       TEXT NOT NULL,
     impact_score INTEGER NOT NULL
 );
+ALTER TABLE historical_events DISABLE ROW LEVEL SECURITY;
 
 -- Scan log: audit trail of every scan run
 CREATE TABLE IF NOT EXISTS scan_log (
@@ -103,3 +115,4 @@ CREATE TABLE IF NOT EXISTS scan_log (
     status       TEXT NOT NULL,
     details      TEXT
 );
+ALTER TABLE scan_log DISABLE ROW LEVEL SECURITY;
