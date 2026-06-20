@@ -36,7 +36,7 @@ def _client() -> Client:
         if not url or not key:
             raise RuntimeError(
                 "SUPABASE_URL and SUPABASE_KEY must be set. "
-                "Add them to .env locally, or to Streamlit Cloud → Settings → Secrets."
+                "Add them to .env locally, or to Streamlit Cloud > Settings > Secrets."
             )
         _supabase_client = create_client(url, key)
         _log("Supabase client created successfully.")
