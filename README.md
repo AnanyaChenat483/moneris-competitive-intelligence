@@ -2,6 +2,8 @@
 
 > An AI-powered competitive intelligence system that tracks, analyzes, and synthesizes signals from six Canadian fintech competitors — automatically, weekly, in one dashboard.
 
+**[Live Demo](https://moneris-competitive-intel.streamlit.app)** · **[GitHub](https://github.com/AnanyaChenat483/moneris-competitive-intelligence)**
+
 ---
 
 ## Overview
@@ -16,21 +18,27 @@ Moneris's martech team had no systematic way to track competitor moves in the Ca
 
 ---
 
+## Screenshots
+
+> _Screenshots coming soon — visit the [live demo](https://moneris-competitive-intel.streamlit.app) to see it in action._
+
+---
+
 ## Features
 
-### 🌐 Website Changes
+### Website Changes
 Scrapes pricing and product pages for all six competitors on every scan. Detects content changes via SHA-256 hashing, diffs the old and new versions, and sends the diff to Claude for classification (pricing / feature / policy / UX) and impact scoring (1–10). Only changes scoring 2/10 or above are stored. Near-duplicates within the same day are automatically deduplicated.
 
-### ⭐ Customer Reviews
+### Customer Reviews
 Fetches the 20 most recent Google Play Store app reviews per competitor using `google-play-scraper` (no API key, no browser required). Claude analyzes the review set for recurring themes, top complaints, top praise, and a severity score (1–10, where 10 = widespread dissatisfaction = strongest Moneris opportunity). Results are stored per scan for trend tracking.
 
-### 📰 Latest News
+### Latest News
 Queries Google News RSS for each competitor and scores every article for Moneris relevance (1–10) and impact type (pricing change / product launch / policy change / funding / partnership). Articles older than 90 days are filtered out automatically. High-credibility sources (Reuters, Bloomberg, TechCrunch, Globe and Mail, etc.) are flagged for weighting.
 
-### ⚖️ Moneris vs Competitors
+### Moneris vs Competitors
 After each scan, Claude synthesizes all signals into a cross-competitor comparison card across seven strategic dimensions: Distribution Model, Developer Experience, SMB Onboarding Speed, POS Ecosystem Strength, Ecommerce Strength, Pricing Transparency, and Canadian Market Presence. Each cell is rated green (Moneris advantage) / yellow (comparable) / red (competitor advantage), with a one-sentence reasoning note accessible on hover. The card also surfaces the top three threats and top three Moneris advantages for the week.
 
-### 📈 Trends
+### Trends
 Tracks threat scores over time per competitor with a fully dark-themed Altair line chart. Each data point includes a Claude-generated one-sentence explanation of why the score moved. Historical seed data from real market events (2022–2025) provides baseline context from day one. The breakdown table shows every score component with the full attribution text.
 
 ---
@@ -41,7 +49,7 @@ Tracks threat scores over time per competitor with a fully dark-themed Altair li
 |---|---|
 | Dashboard | [Streamlit](https://streamlit.io) |
 | AI Analysis | [Claude API](https://www.anthropic.com) — `claude-opus-4-8` with adaptive thinking |
-| Database | [Supabase](https://supabase.com) (PostgreSQL) |
+| Database | [Supabase](https://supabase.com) (PostgreSQL) — cloud-hosted, persists across deploys |
 | Web Scraping | `requests` + `BeautifulSoup4` |
 | App Reviews | `google-play-scraper` |
 | News | Google News RSS (no API key required) |
@@ -73,20 +81,14 @@ A score of **7–10** signals a competitor making aggressive moves worth immedia
 
 ---
 
-## Screenshots
-
-> _Add screenshots here_
-
----
-
 ## Setup
 
 **Requirements:** Python 3.11+, an [Anthropic API key](https://console.anthropic.com/), a free [Supabase](https://supabase.com) project
 
 ```bash
 # 1. Clone the repository
-git clone <repo-url>
-cd competitive-monitor
+git clone https://github.com/AnanyaChenat483/moneris-competitive-intelligence.git
+cd moneris-competitive-intelligence
 
 # 2. Create and activate a virtual environment
 python -m venv venv
@@ -97,14 +99,15 @@ source venv/bin/activate        # macOS / Linux
 pip install -r requirements.txt
 
 # 4. Create the Supabase tables
-#    Open your Supabase project → SQL Editor → paste and run schema.sql
+#    Go to app.supabase.com > your project > SQL Editor
+#    Paste the contents of schema.sql and click Run
 
 # 5. Add your credentials
 cp .env.example .env
-# Open .env and set:
+# Open .env and fill in:
 #   ANTHROPIC_API_KEY=sk-ant-...
 #   SUPABASE_URL=https://your-project-ref.supabase.co
-#   SUPABASE_KEY=your_anon_or_service_role_key
+#   SUPABASE_KEY=your_service_role_key
 
 # 6. Run the dashboard
 streamlit run app.py
@@ -112,25 +115,26 @@ streamlit run app.py
 
 The app seeds historical event data automatically on first run. Open `http://localhost:8501`, then click **Run Full Scan** in the sidebar to populate live data.
 
-**Deploying to Streamlit Cloud:** Add `ANTHROPIC_API_KEY`, `SUPABASE_URL`, and `SUPABASE_KEY` under Settings → Secrets in your Streamlit Cloud app.
+**Deploying to Streamlit Cloud:** Fork the repo, connect it in [Streamlit Cloud](https://streamlit.io/cloud), then add `ANTHROPIC_API_KEY`, `SUPABASE_URL`, and `SUPABASE_KEY` under Settings > Secrets. The app will seed itself on first startup.
 
 ---
 
 ## Project Structure
 
 ```
-competitive-monitor/
-├── app.py              # Streamlit dashboard (all five tabs)
-├── scanner.py          # Scan orchestration — website → reviews → news → scoring
-├── analyzer.py         # Claude API calls — all AI analysis and synthesis
-├── database.py         # Supabase persistence layer
-├── scraper.py          # Website scraper (requests + BeautifulSoup)
-├── play_reviews.py     # Google Play Store review fetcher
-├── news_client.py      # Google News RSS client
-├── seed_data.py        # Historical event seed data (2022–2025)
-├── config.py           # Competitor URLs, app IDs, weights, model config
-├── schema.sql          # Supabase table definitions (run once in SQL Editor)
-├── .env.example        # Credentials template
+moneris-competitive-intelligence/
+├── app.py                        # Streamlit dashboard (all five tabs)
+├── scanner.py                    # Scan orchestration — website -> reviews -> news -> scoring
+├── analyzer.py                   # Claude API calls — all AI analysis and synthesis
+├── database.py                   # Supabase persistence layer
+├── scraper.py                    # Website scraper (requests + BeautifulSoup)
+├── play_reviews.py               # Google Play Store review fetcher
+├── news_client.py                # Google News RSS client
+├── seed_data.py                  # Historical event and website changes seed data
+├── config.py                     # Competitor URLs, app IDs, weights, model config
+├── schema.sql                    # Supabase table definitions (run once in SQL Editor)
+├── migrate_sqlite_to_supabase.py # One-time migration utility
+├── .env.example                  # Credentials template
 └── requirements.txt
 ```
 
@@ -142,4 +146,4 @@ competitive-monitor/
 Master of Business Analytics, University of British Columbia
 Marketing Technology Intern, Moneris
 
-[LinkedIn](#) · [GitHub](#)
+[LinkedIn](https://www.linkedin.com/in/ananyachenat/) · [GitHub](https://github.com/AnanyaChenat483)
