@@ -6,9 +6,17 @@
 
 ---
 
+## Try It
+
+The easiest way to use this is the live demo — no setup required:
+
+**[https://moneris-competitive-intel.streamlit.app](https://moneris-competitive-intel.streamlit.app)**
+
+---
+
 ## Overview
 
-This system monitors Stripe, Square, PayPal, Shopify Payments, Helcim, and Nuvei across three live data sources — competitor website changes, Google Play Store app reviews, and Google News — and uses Claude AI (Anthropic) to classify signals, score competitive threats, and generate strategic recommendations for Moneris. Every scan produces a ranked threat score per competitor, a cross-dimensional comparison card, and a full audit trail of what changed, when, and why it matters. The result is a single Streamlit dashboard that replaces hours of manual competitive research with an automated weekly intelligence brief.
+This system monitors Stripe, Square, PayPal, Shopify Payments, Helcim, and Nuvei across three live data sources — competitor website changes, Google Play Store app reviews, and Google News — and uses Claude AI (Anthropic) to classify signals, score competitive threats, and generate strategic recommendations for Moneris. Every scan produces a ranked threat score per competitor, a cross-dimensional comparison card, and a full audit trail of what changed, when, and why it matters. The result is a single dashboard that replaces hours of manual competitive research with an automated weekly intelligence brief.
 
 ---
 
@@ -47,7 +55,7 @@ Tracks threat scores over time per competitor with a fully dark-themed Altair li
 
 | Layer | Technology |
 |---|---|
-| Dashboard | [Streamlit](https://streamlit.io) |
+| Dashboard | [Streamlit](https://streamlit.io) — hosted on Streamlit Cloud |
 | AI Analysis | [Claude API](https://www.anthropic.com) — `claude-opus-4-8` with adaptive thinking |
 | Database | [Supabase](https://supabase.com) (PostgreSQL) — cloud-hosted, persists across deploys |
 | Web Scraping | `requests` + `BeautifulSoup4` |
@@ -81,7 +89,9 @@ A score of **7–10** signals a competitor making aggressive moves worth immedia
 
 ---
 
-## Setup
+## Local Development
+
+The live demo at [moneris-competitive-intel.streamlit.app](https://moneris-competitive-intel.streamlit.app) is the easiest way to use this. If you want to run it yourself or extend it, follow these steps.
 
 **Requirements:** Python 3.11+, an [Anthropic API key](https://console.anthropic.com/), a free [Supabase](https://supabase.com) project
 
@@ -113,9 +123,7 @@ cp .env.example .env
 streamlit run app.py
 ```
 
-The app seeds historical event data automatically on first run. Open `http://localhost:8501`, then click **Run Full Scan** in the sidebar to populate live data.
-
-**Deploying to Streamlit Cloud:** Fork the repo, connect it in [Streamlit Cloud](https://streamlit.io/cloud), then add `ANTHROPIC_API_KEY`, `SUPABASE_URL`, and `SUPABASE_KEY` under Settings > Secrets. The app will seed itself on first startup.
+The app seeds historical event data automatically on first run. Click **Run Full Scan** in the sidebar to populate live data.
 
 ---
 
