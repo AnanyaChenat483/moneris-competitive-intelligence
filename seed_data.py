@@ -123,7 +123,7 @@ def seed_if_empty() -> bool:
         database.insert_threat_score(
             competitor=event["competitor"],
             threat_score=float(event["impact_score"]),
-            reddit_component=float(event["impact_score"]),
+            review_component=float(event["impact_score"]),
             news_component=float(event["impact_score"]),
             feature_velocity_component=float(event["impact_score"]),
             smb_relevance_component=float(smb_relevance),
