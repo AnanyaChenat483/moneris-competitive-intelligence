@@ -121,7 +121,8 @@ def upsert_snapshot(competitor: str, page_type: str, url: str, page_title: str,
 
 def insert_website_change(competitor: str, page_type: str, url: str, change_type: str,
                             description: str, customer_impact_score: int,
-                            revenue_sensitivity: str, segment_affected: str, diff: str) -> None:
+                            revenue_sensitivity: str, segment_affected: str, diff: str,
+                            detected_at: str = None) -> None:
     _log(
         f"insert_website_change({competitor!r}, {page_type!r}) "
         f"type={change_type!r} impact={customer_impact_score}"
@@ -129,7 +130,7 @@ def insert_website_change(competitor: str, page_type: str, url: str, change_type
     try:
         resp = _client().table("website_changes").insert(
             {
-                "detected_at": _now(),
+                "detected_at": detected_at or _now(),
                 "competitor": competitor,
                 "page_type": page_type,
                 "url": url,

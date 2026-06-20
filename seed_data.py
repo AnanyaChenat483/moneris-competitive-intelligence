@@ -483,6 +483,7 @@ def seed_website_changes_if_empty() -> bool:
             revenue_sensitivity=change["revenue_sensitivity"],
             segment_affected=change["segment_affected"],
             diff=change["diff"],
+            detected_at=change["detected_at"],
         )
 
     return True
