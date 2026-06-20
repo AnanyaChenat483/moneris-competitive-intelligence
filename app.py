@@ -319,6 +319,14 @@ def _format_news_date(date_str: str) -> str:
     return date_str[:10] if date_str else ""
 
 
+def _parse_detected_at(s: str):
+    """Parse a detected_at ISO timestamp string into an aware datetime, or epoch on failure."""
+    try:
+        return datetime.fromisoformat(s)
+    except Exception:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
 def _deduplicate_changes(changes: list[dict]) -> list[dict]:
     """Remove near-duplicate changes (same competitor + day, description similarity > 65%)."""
     if not changes:
@@ -483,10 +491,14 @@ with tab1:
         wc_competitor = st.selectbox("Competitor", ["All"] + COMPETITOR_NAMES, key="wc_c")
     with fc2:
         wc_change_type = st.selectbox("Change type", ["All", "pricing", "feature", "policy", "UX"], key="wc_ct")
+    st.caption(f"Showing changes from the last 90 days · older data retained in database for trend analysis")
 
     changes = database.get_website_changes(limit=500, competitor=wc_competitor, change_type=wc_change_type)
     # Filter out low-impact (score < 2) entries already in the DB from earlier scans
     changes = [c for c in changes if c.get("customer_impact_score", 0) >= 2]
+    # Only show changes from the last 90 days
+    _cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+    changes = [c for c in changes if _parse_detected_at(c.get("detected_at", "")) >= _cutoff]
     # Remove near-duplicates: same competitor + day with similar descriptions
     changes = _deduplicate_changes(changes)
 
