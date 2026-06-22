@@ -22,7 +22,7 @@ This system monitors Stripe, Square, PayPal, Shopify Payments, Helcim, and Nuvei
 
 ## Why I Built This
 
-Moneris's martech team had no systematic way to track competitor moves in the Canadian payments market — monitoring happened ad hoc, reactively, and inconsistently. I built this to automate that process end-to-end: from raw web scraping and review ingestion, through AI-powered classification, to a polished dashboard that surfaces actionable intelligence without requiring anyone to open a browser. The goal was to make competitive awareness a continuous process, not a quarterly project.
+Moneris's martech team had no systematic way to track competitor moves in the Canadian payments market — monitoring happened ad hoc and reactively. I built this to automate that process end-to-end: from raw web scraping and review ingestion, through AI-powered classification, to a polished dashboard that surfaces actionable intelligence without requiring anyone to open a browser. The goal was to make competitive awareness a continuous process, not a quarterly project.
 
 ---
 
