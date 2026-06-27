@@ -8,7 +8,6 @@
 
 ## Try It
 
-
 **[https://moneris-competitive-intel.streamlit.app](https://moneris-competitive-intel.streamlit.app)**
 
 ---
