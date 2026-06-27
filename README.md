@@ -8,7 +8,6 @@
 
 ## Try It
 
-The easiest way to use this is the live demo — no setup required:
 
 **[https://moneris-competitive-intel.streamlit.app](https://moneris-competitive-intel.streamlit.app)**
 
