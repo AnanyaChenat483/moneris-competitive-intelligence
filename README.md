@@ -2,8 +2,6 @@
 
 > An AI-powered competitive intelligence system that tracks, analyzes, and synthesizes signals from six Canadian fintech competitors — automatically, weekly, in one dashboard.
 
-**[Live Demo](https://moneris-competitive-intel.streamlit.app)** · **[GitHub](https://github.com/AnanyaChenat483/moneris-competitive-intelligence)**
-
 ---
 
 ## Try It
@@ -139,12 +137,3 @@ moneris-competitive-intelligence/
 └── requirements.txt
 ```
 
----
-
-## Author
-
-**Ananya Chenat**
-Master of Business Analytics, University of British Columbia
-Marketing Technology Intern, Moneris
-
-[LinkedIn](https://www.linkedin.com/in/ananyachenat/) · [GitHub](https://github.com/AnanyaChenat483)
