@@ -12,7 +12,7 @@
 
 ## Overview
 
-This system monitors Stripe, Square, PayPal, Shopify Payments, Helcim, and Nuvei across three live data sources — competitor website changes, Google Play Store app reviews, and Google News — and uses Claude AI (Anthropic) to classify signals, score competitive threats, and generate strategic recommendations for Moneris. Every scan produces a ranked threat score per competitor, a cross-dimensional comparison card, and a full audit trail of what changed, when, and why it matters. The result is a single dashboard that replaces hours of manual competitive research with an automated weekly intelligence brief.
+This system monitors Stripe, Square, PayPal, Shopify Payments, Helcim, Nuvei, Global Payments and Clover across three live data sources — competitor website changes, Google Play Store app reviews, and Google News — and uses Claude AI (Anthropic) to classify signals, score competitive threats, and generate strategic recommendations for Moneris. Every scan produces a ranked threat score per competitor, a cross-dimensional comparison card, and a full audit trail of what changed, when, and why it matters. The result is a single dashboard that replaces hours of manual competitive research with an automated weekly intelligence brief.
 
 ---
 
