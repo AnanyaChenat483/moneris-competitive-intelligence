@@ -7,6 +7,7 @@ from urllib.parse import quote
 import requests
 
 from config import (
+    COMPETITOR_NEWS_QUERIES,
     HIGH_VALUE_NEWS_SOURCES,
     NEWS_MAX_ARTICLES_PER_COMPETITOR,
     NEWS_QUERY_TEMPLATE,
@@ -39,7 +40,7 @@ def fetch_news_for_competitor(competitor: str) -> list[dict]:
     Returns a deduplicated, source-weighted list of articles, each with:
     headline, source, url, published_at, source_weight.
     """
-    query = NEWS_QUERY_TEMPLATE.format(competitor=competitor)
+    query = COMPETITOR_NEWS_QUERIES.get(competitor, NEWS_QUERY_TEMPLATE.format(competitor=competitor))
     url = f"{NEWS_RSS_URL}?q={quote(query)}&hl=en-CA&gl=CA&ceid=CA:en"
 
     headers = {"User-Agent": USER_AGENT}

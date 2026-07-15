@@ -27,14 +27,20 @@ database.fix_error_threat_scores()
 
 COMPETITOR_NAMES = list(COMPETITORS.keys())
 
-COMPETITOR_COLORS = [
-    "#6366F1",  # Stripe
-    "#F59E0B",  # Square
-    "#3B82F6",  # PayPal
-    "#10B981",  # Shopify Payments
-    "#F43F5E",  # Helcim
-    "#8B5CF6",  # Nuvei
-]
+COMPETITOR_COLORS = {
+    "Stripe":           "#635BFF",  # Stripe purple
+    "Square":           "#00B388",  # green
+    "PayPal":           "#003087",  # PayPal navy
+    "Shopify Payments": "#96BF48",  # Shopify green
+    "Helcim":           "#E8335D",  # red/pink
+    "Nuvei":            "#FF6B35",  # orange
+    "Global Payments":  "#00A4E4",  # light blue
+    "Clover":           "#1DA462",  # Clover green
+}
+
+# Ordered lists for Altair (preserves COMPETITOR_NAMES order)
+_COLOR_DOMAIN = COMPETITOR_NAMES
+_COLOR_RANGE  = [COMPETITOR_COLORS.get(c, "#94A3B8") for c in COMPETITOR_NAMES]
 
 # ---------------------------------------------------------------------------
 # Global CSS
@@ -354,12 +360,356 @@ def _deduplicate_changes(changes: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# PDF export helpers
+# ---------------------------------------------------------------------------
+
+def _hex_to_rgb(hex_color: str) -> tuple:
+    """Parse a #RRGGBB hex string into an (r, g, b) int tuple."""
+    h = hex_color.lstrip("#")
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+def _safe_str(s) -> str:
+    """Encode a string to Latin-1 for fpdf2 built-in fonts, replacing unknowns."""
+    return str(s or "").encode("latin-1", errors="replace").decode("latin-1")
+
+
+def _generate_pdf_report() -> bytes:
+    """Generate the Moneris weekly brief as a PDF and return raw bytes."""
+    from fpdf import FPDF  # lazy import so missing package doesn't break the app
+
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    now = datetime.now()
+
+    # ── Dark header banner ──────────────────────────────────────────────────
+    pdf.set_fill_color(11, 15, 26)
+    pdf.rect(0, 0, 210, 36, "F")
+    pdf.set_xy(15, 8)
+    pdf.set_text_color(0, 212, 170)
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(180, 10, "Moneris Competitive Intelligence Brief", align="C",
+             new_x="LMARGIN", new_y="NEXT")
+    pdf.set_xy(15, 22)
+    pdf.set_text_color(148, 163, 184)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(180, 6,
+             _safe_str(f"Weekly Brief  |  Exported: {now.strftime('%B %d, %Y at %H:%M')}  |  Powered by Claude AI"),
+             align="C")
+    pdf.set_y(42)
+
+    # Last scan line
+    last_scan = database.get_last_scan()
+    pdf.set_text_color(100, 116, 139)
+    pdf.set_font("Helvetica", "I", 8)
+    if last_scan:
+        pdf.set_x(15)
+        pdf.cell(0, 5,
+                 _safe_str(f"Last Scan: {last_scan['started_at']}  |  Status: {last_scan['status']}"))
+    pdf.ln(7)
+
+    def _section_header(title: str):
+        y = pdf.get_y()
+        pdf.set_fill_color(19, 26, 46)
+        pdf.rect(15, y, 180, 7, "F")
+        pdf.set_xy(18, y + 1)
+        pdf.set_text_color(0, 212, 170)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.cell(0, 5, title.upper())
+        pdf.set_y(y + 9)
+
+    def _divider():
+        pdf.set_draw_color(30, 41, 59)
+        pdf.set_line_width(0.2)
+        pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+        pdf.ln(1.5)
+
+    # ── Threat Scores ───────────────────────────────────────────────────────
+    _section_header("Competitor Threat Scores")
+
+    # Column widths: Competitor | Score | Trend | Attribution
+    cw = [52, 25, 22, 81]
+    latest_scores = database.get_latest_threat_scores()
+
+    # Table header row
+    pdf.set_text_color(71, 85, 105)
+    pdf.set_font("Helvetica", "B", 7)
+    pdf.set_fill_color(15, 23, 42)
+    x0 = 15
+    for i, (lbl, w) in enumerate(zip(["Competitor", "Score / 10", "Trend", "Attribution"], cw)):
+        pdf.set_xy(x0 + sum(cw[:i]), pdf.get_y())
+        pdf.cell(w, 5, lbl, fill=True)
+    pdf.ln(5)
+    _divider()
+
+    for competitor in COMPETITOR_NAMES:
+        row = latest_scores.get(competitor)
+        if not row:
+            continue
+        score = float(row["threat_score"])
+        prev = database.get_previous_threat_score(competitor)
+        if prev:
+            delta = score - float(prev["threat_score"])
+            trend = (f"+{delta:.1f}" if delta > 0.05
+                     else (f"{delta:.1f}" if delta < -0.05 else "stable"))
+        else:
+            trend = "first scan"
+
+        r, g, b = _hex_to_rgb(COMPETITOR_COLORS.get(competitor, "#94A3B8"))
+        reason_short = _safe_str((row.get("reason") or "")[:90])
+        y = pdf.get_y()
+
+        # Name in brand color
+        pdf.set_text_color(r, g, b)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_xy(x0, y)
+        pdf.cell(cw[0], 5.5, _safe_str(competitor))
+
+        # Score in tier color
+        if score >= 7:
+            pdf.set_text_color(248, 113, 113)
+        elif score >= 4:
+            pdf.set_text_color(251, 191, 36)
+        else:
+            pdf.set_text_color(52, 211, 153)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_xy(x0 + cw[0], y)
+        pdf.cell(cw[1], 5.5, f"{score:.1f}", align="C")
+
+        # Trend
+        pdf.set_text_color(100, 116, 139)
+        pdf.set_font("Helvetica", "", 7)
+        pdf.set_xy(x0 + cw[0] + cw[1], y)
+        pdf.cell(cw[2], 5.5, trend, align="C")
+
+        # Attribution (multi-cell advances Y)
+        pdf.set_text_color(71, 85, 105)
+        pdf.set_font("Helvetica", "", 6.5)
+        pdf.set_xy(x0 + cw[0] + cw[1] + cw[2], y)
+        pdf.multi_cell(cw[3], 2.8, reason_short)
+
+        pdf.set_y(max(pdf.get_y(), y + 5.5) + 0.5)
+        _divider()
+
+    pdf.ln(3)
+
+    # ── Website Changes (top 5) ─────────────────────────────────────────────
+    _section_header("Website Changes — Top 5 by Impact")
+
+    changes = database.get_website_changes(limit=500)
+    changes = [c for c in changes if c.get("customer_impact_score", 0) >= 2]
+    changes = sorted(changes, key=lambda c: c.get("customer_impact_score", 0), reverse=True)[:5]
+
+    for ch in changes:
+        r, g, b = _hex_to_rgb(COMPETITOR_COLORS.get(ch["competitor"], "#94A3B8"))
+        y = pdf.get_y()
+        pdf.set_text_color(r, g, b)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_xy(15, y)
+        pdf.cell(50, 5, _safe_str(ch["competitor"]))
+        pdf.set_text_color(100, 116, 139)
+        pdf.set_font("Helvetica", "", 7)
+        pdf.cell(35, 5, _safe_str((ch["detected_at"] or "")[:10]))
+        sc_v = float(ch.get("customer_impact_score", 0))
+        if sc_v >= 7:
+            pdf.set_text_color(248, 113, 113)
+        elif sc_v >= 4:
+            pdf.set_text_color(251, 191, 36)
+        else:
+            pdf.set_text_color(52, 211, 153)
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.cell(30, 5, f"Impact: {sc_v:.0f}/10")
+        pdf.ln(5)
+        pdf.set_text_color(50, 60, 80)
+        pdf.set_font("Helvetica", "", 7.5)
+        pdf.set_x(15)
+        pdf.multi_cell(180, 3.8, _safe_str((ch["description"] or "")[:220]))
+        pdf.ln(1.5)
+        _divider()
+
+    pdf.ln(2)
+
+    # ── Customer Reviews ────────────────────────────────────────────────────
+    _section_header("Customer Reviews — Top Complaints by Competitor")
+
+    review_data = database.get_latest_review_sentiment()
+    for competitor in COMPETITOR_NAMES:
+        rec = review_data.get(competitor)
+        if not rec:
+            continue
+        r, g, b = _hex_to_rgb(COMPETITOR_COLORS.get(competitor, "#94A3B8"))
+        pdf.set_text_color(r, g, b)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_x(15)
+        pdf.cell(58, 5, _safe_str(competitor))
+        pdf.set_text_color(100, 116, 139)
+        pdf.set_font("Helvetica", "", 7)
+        sev = float(rec.get("severity_score") or 0)
+        pdf.cell(0, 5,
+                 _safe_str(f"Sentiment: {rec.get('sentiment', '-')}  |  Severity: {sev:.1f}/10"))
+        pdf.ln(5)
+        for complaint in (rec.get("top_complaints") or [])[:2]:
+            pdf.set_text_color(71, 85, 105)
+            pdf.set_font("Helvetica", "", 7)
+            pdf.set_x(20)
+            pdf.multi_cell(175, 3.5, _safe_str(f"- {complaint}"))
+        opp = rec.get("moneris_opportunity") or ""
+        if opp:
+            pdf.set_text_color(0, 164, 132)
+            pdf.set_font("Helvetica", "I", 7)
+            pdf.set_x(20)
+            pdf.multi_cell(175, 3.5, _safe_str(f"Opp: {opp[:130]}"))
+        pdf.ln(1.5)
+
+    pdf.ln(2)
+
+    # ── Latest News (top 5) ─────────────────────────────────────────────────
+    _section_header("Latest News Highlights — Top 5 by Relevance")
+
+    articles = database.get_news_articles(limit=500)
+    articles = sorted(articles, key=lambda a: a.get("relevance_to_moneris", 0), reverse=True)[:5]
+
+    for a in articles:
+        rel = float(a.get("relevance_to_moneris") or 0)
+        r, g, b = _hex_to_rgb(COMPETITOR_COLORS.get(a.get("competitor", ""), "#94A3B8"))
+        y = pdf.get_y()
+        pdf.set_text_color(r, g, b)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_xy(15, y)
+        pdf.cell(50, 5, _safe_str(a.get("competitor", "")))
+        if rel >= 7:
+            pdf.set_text_color(248, 113, 113)
+        elif rel >= 4:
+            pdf.set_text_color(251, 191, 36)
+        else:
+            pdf.set_text_color(52, 211, 153)
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.cell(35, 5, f"Relevance: {rel:.1f}/10")
+        pdf.set_text_color(100, 116, 139)
+        pdf.set_font("Helvetica", "", 7)
+        pdf.cell(0, 5, _safe_str((a.get("published_at") or "")[:10]))
+        pdf.ln(5)
+        pdf.set_text_color(50, 60, 80)
+        pdf.set_font("Helvetica", "", 7.5)
+        pdf.set_x(15)
+        pdf.multi_cell(180, 3.8, _safe_str((a.get("headline") or "")[:110]))
+        if a.get("summary"):
+            pdf.set_text_color(100, 116, 139)
+            pdf.set_font("Helvetica", "", 7)
+            pdf.set_x(15)
+            pdf.multi_cell(180, 3.5, _safe_str((a.get("summary") or "")[:160]))
+        pdf.ln(1.5)
+        _divider()
+
+    pdf.ln(2)
+
+    # ── Comparison Table ────────────────────────────────────────────────────
+    _section_header("Moneris vs Competitors")
+
+    card = database.get_latest_comparison_card()
+    if card:
+        comparison = card["comparison"]
+        RATING_ICONS = {"green": "(+)", "yellow": "(~)", "red": "(-)"}
+        RATING_COLORS = {
+            "green":  (52, 211, 153),
+            "yellow": (251, 191, 36),
+            "red":    (248, 113, 113),
+        }
+
+        dim_w = 40
+        n = len(COMPETITOR_NAMES)
+        col_w = (180 - dim_w) / n
+
+        # Header row
+        pdf.set_fill_color(15, 23, 42)
+        pdf.set_text_color(71, 85, 105)
+        pdf.set_font("Helvetica", "B", 5.5)
+        pdf.set_x(15)
+        pdf.cell(dim_w, 5, "Dimension", fill=True)
+        for c in COMPETITOR_NAMES:
+            pdf.cell(col_w, 5, _safe_str(c[:9]), align="C", fill=True)
+        pdf.ln(5)
+        _divider()
+
+        for dimension in COMPARISON_DIMENSIONS:
+            pdf.set_text_color(100, 116, 139)
+            pdf.set_font("Helvetica", "", 6.5)
+            pdf.set_x(15)
+            pdf.cell(dim_w, 4.5, _safe_str(dimension[:26]))
+            for competitor in COMPETITOR_NAMES:
+                cell = comparison.get(competitor, {}).get(dimension)
+                if cell:
+                    rating = cell.get("rating", "")
+                    icon = RATING_ICONS.get(rating, "?")
+                    rc = RATING_COLORS.get(rating, (100, 116, 139))
+                    pdf.set_text_color(*rc)
+                    pdf.set_font("Helvetica", "B", 6.5)
+                    pdf.cell(col_w, 4.5, icon, align="C")
+                    pdf.set_font("Helvetica", "", 6.5)
+                    pdf.set_text_color(100, 116, 139)
+                else:
+                    pdf.cell(col_w, 4.5, "--", align="C")
+            pdf.ln(4.5)
+
+        pdf.set_font("Helvetica", "I", 6.5)
+        pdf.set_text_color(71, 85, 105)
+        pdf.set_x(15)
+        pdf.ln(2)
+        pdf.cell(0, 4,
+                 "(+) = Moneris advantage  |  (~) = Comparable  |  (-) = Competitor advantage")
+        pdf.ln(6)
+
+        # ── Threats & Advantages ────────────────────────────────────────────
+        _section_header("Top Threats & Moneris Advantages")
+        pdf.ln(2)
+
+        pdf.set_x(15)
+        pdf.set_text_color(248, 113, 113)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.cell(0, 5, "Top Threats to Moneris")
+        pdf.ln(5)
+        for threat in card.get("top_threats", [])[:3]:
+            pdf.set_text_color(71, 85, 105)
+            pdf.set_font("Helvetica", "", 7)
+            pdf.set_x(18)
+            pdf.multi_cell(177, 3.8, _safe_str(f"- {threat}"))
+        pdf.ln(3)
+
+        pdf.set_x(15)
+        pdf.set_text_color(52, 211, 153)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.cell(0, 5, "Moneris Advantages to Leverage")
+        pdf.ln(5)
+        for adv in card.get("top_advantages", [])[:3]:
+            pdf.set_text_color(71, 85, 105)
+            pdf.set_font("Helvetica", "", 7)
+            pdf.set_x(18)
+            pdf.multi_cell(177, 3.8, _safe_str(f"- {adv}"))
+
+    # ── Footer ───────────────────────────────────────────────────────────────
+    pdf.set_y(-18)
+    pdf.set_draw_color(30, 41, 59)
+    pdf.set_line_width(0.3)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(2)
+    pdf.set_text_color(71, 85, 105)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.cell(0, 5,
+             _safe_str(f"Moneris Competitive Intelligence  |  Confidential  |  {now.strftime('%Y-%m-%d')}"),
+             align="C")
+
+    return bytes(pdf.output())
+
+
+# ---------------------------------------------------------------------------
 # App header
 # ---------------------------------------------------------------------------
 
 st.markdown(
     '<div class="app-title">📊 Moneris <span style="color:#00D4AA">Competitive</span> Intel</div>'
-    '<div class="app-tagline">Real-time signals across 6 payment competitors &nbsp;·&nbsp; Powered by Claude AI</div>',
+    '<div class="app-tagline">Real-time signals across 8 payment competitors &nbsp;·&nbsp; Powered by Claude AI</div>',
     unsafe_allow_html=True,
 )
 
@@ -385,18 +735,20 @@ for competitor in COMPETITOR_NAMES:
                 delta_html = '<div class="kpi-delta dl-eq">&#8212; stable vs last scan</div>'
         else:
             delta_html = '<div class="kpi-delta dl-eq">First scan</div>'
+        c_color = COMPETITOR_COLORS.get(competitor, "#475569")
         cards_html.append(
-            f'<div class="kpi-card">'
-            f'<div class="kpi-name">{_e(competitor)}</div>'
+            f'<div class="kpi-card" style="border-left:3px solid {c_color}">'
+            f'<div class="kpi-name" style="color:{c_color}">{_e(competitor)}</div>'
             f'<div style="font-size:.6rem;color:#374151;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Threat Score</div>'
             f'<div class="kpi-score {sc}">{score:.1f}</div>'
             f'{delta_html}'
             f'</div>'
         )
     else:
+        c_color = COMPETITOR_COLORS.get(competitor, "#475569")
         cards_html.append(
-            f'<div class="kpi-card">'
-            f'<div class="kpi-name">{_e(competitor)}</div>'
+            f'<div class="kpi-card" style="border-left:3px solid {c_color}">'
+            f'<div class="kpi-name" style="color:{c_color}">{_e(competitor)}</div>'
             f'<div style="font-size:.6rem;color:#374151;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Threat Score</div>'
             f'<div class="kpi-score sc-grey">&#8212;</div>'
             f'<div class="kpi-delta dl-eq">No data</div>'
@@ -421,7 +773,7 @@ st.divider()
 with st.sidebar:
     st.markdown("### 🔍 Run Scan")
     st.caption(
-        "Scans all 6 competitors across website pricing/product pages, "
+        "Scans all 8 competitors across website pricing/product pages, "
         "Google Play Store app reviews, and Google News, then runs AI analysis "
         "and updates the dashboard."
     )
@@ -459,6 +811,30 @@ with st.sidebar:
                     for err in result["errors"]:
                         st.markdown(f"- {err}")
             st.info("Refresh to see updated results.")
+
+    st.divider()
+    st.markdown("### 📄 Export Report")
+    st.caption("Generate a PDF summary of all current competitive intelligence.")
+
+    if "pdf_bytes" not in st.session_state:
+        st.session_state.pdf_bytes = None
+
+    if st.button("📄 Export Weekly Brief", use_container_width=True):
+        with st.spinner("Generating PDF..."):
+            try:
+                st.session_state.pdf_bytes = _generate_pdf_report()
+            except Exception as exc:
+                st.error(f"PDF generation failed: {exc}")
+                st.session_state.pdf_bytes = None
+
+    if st.session_state.pdf_bytes:
+        st.download_button(
+            label="⬇ Download PDF",
+            data=st.session_state.pdf_bytes,
+            file_name=f"moneris_weekly_brief_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -836,7 +1212,7 @@ with tab5:
                 color=alt.Color(
                     "competitor:N",
                     title="Competitor",
-                    scale=alt.Scale(domain=COMPETITOR_NAMES, range=COMPETITOR_COLORS),
+                    scale=alt.Scale(domain=_COLOR_DOMAIN, range=_COLOR_RANGE),
                     legend=alt.Legend(labelColor="#CBD5E1", titleColor="#94A3B8"),
                 ),
                 tooltip=[

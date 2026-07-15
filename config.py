@@ -40,6 +40,14 @@ COMPETITORS = {
         "Pricing": "https://www.nuvei.com/",
         "Product": "https://www.nuvei.com/platform",
     },
+    "Global Payments": {
+        "Pricing": "https://www.globalpayments.com/en-ca/solutions",
+        "Product": "https://www.globalpayments.com/en-ca/industries/retail",
+    },
+    "Clover": {
+        "Pricing": "https://www.clover.com/ca/en/pricing",
+        "Product": "https://www.clover.com/ca/en/pos-systems",
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -85,6 +93,8 @@ PLAY_STORE_APP_IDS = {
     "Shopify Payments": "com.shopify",
     "Helcim":           "com.helcim.helcimmobileapp",
     "Nuvei":            "com.nuvei.android",
+    "Global Payments":  "com.globalpaymentsintegrated.mobile",
+    "Clover":           "com.clover.android",
 }
 
 REVIEW_MAX_PER_COMPETITOR = 20
@@ -95,6 +105,13 @@ REVIEW_MAX_PER_COMPETITOR = 20
 NEWS_RSS_URL = "https://news.google.com/rss/search"
 NEWS_QUERY_TEMPLATE = "{competitor} payments Canada"
 NEWS_MAX_ARTICLES_PER_COMPETITOR = 8
+
+# Per-competitor news query overrides (falls back to NEWS_QUERY_TEMPLATE)
+# Use these when the default template produces too-generic or redundant queries.
+COMPETITOR_NEWS_QUERIES = {
+    "Global Payments": "Global Payments Canada",
+    "Clover": "Clover POS Canada payments",
+}
 
 # Source weighting for news credibility
 HIGH_VALUE_NEWS_SOURCES = [
@@ -136,6 +153,8 @@ SMB_RELEVANCE = {
     "Shopify Payments": 8,
     "Helcim": 7,
     "Nuvei": 5,
+    "Global Payments": 6,
+    "Clover": 8,
 }
 
 # ---------------------------------------------------------------------------
@@ -148,10 +167,10 @@ TARGET_COMPANY_CONTEXT = (
     "presence across Canada, a strong point-of-sale (POS) hardware ecosystem, "
     "and pricing models built around interchange-plus and blended rates. "
     "Moneris competes with global payment processors and merchant acquirers - "
-    "Stripe, Square, PayPal, Shopify Payments, Helcim, and Nuvei - particularly "
-    "for SMB merchants, online/e-commerce payments, in-person point-of-sale, "
-    "developer-friendly payment integrations, and transparent pricing in the "
-    "Canadian market."
+    "Stripe, Square, PayPal, Shopify Payments, Helcim, Nuvei, Global Payments, "
+    "and Clover - particularly for SMB merchants, online/e-commerce payments, "
+    "in-person point-of-sale, developer-friendly payment integrations, and "
+    "transparent pricing in the Canadian market."
 )
 
 # ---------------------------------------------------------------------------

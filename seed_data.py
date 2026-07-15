@@ -94,6 +94,38 @@ HISTORICAL_EVENTS = [
         "source": "techcrunch.com",
         "impact_score": 6,
     },
+    {
+        "competitor": "Global Payments",
+        "date": "2023-08-23",
+        "event_type": "funding",
+        "description": "Global Payments completed its $4B acquisition of EVO Payments, significantly expanding its Canadian SMB merchant base and point-of-sale hardware capabilities",
+        "source": "reuters.com",
+        "impact_score": 7,
+    },
+    {
+        "competitor": "Global Payments",
+        "date": "2024-09-15",
+        "event_type": "product_launch",
+        "description": "Global Payments launched Genius Central, a unified commerce platform for Canadian retailers combining in-store, online, and mobile payments with real-time reporting",
+        "source": "financialpost.com",
+        "impact_score": 6,
+    },
+    {
+        "competitor": "Clover",
+        "date": "2023-10-03",
+        "event_type": "product_launch",
+        "description": "Clover expanded to the Canadian market with new POS hardware bundles targeting retail and restaurant SMBs, backed by Fiserv's banking relationships with major Canadian institutions",
+        "source": "theglobeandmail.com",
+        "impact_score": 7,
+    },
+    {
+        "competitor": "Clover",
+        "date": "2024-04-18",
+        "event_type": "pricing_change",
+        "description": "Clover introduced subscription-based pricing in Canada at $14.95/month base with bundled payment processing at 2.6% + 10c in-person, directly competing with Moneris terminal lease programs for SMB merchants",
+        "source": "techcrunch.com",
+        "impact_score": 8,
+    },
 ]
 
 
@@ -387,6 +419,121 @@ WEBSITE_CHANGES_SEED = [
             "+Your estimated monthly cost with Helcim: $____\n"
             "+vs. flat-rate processor at 2.9% + 30¢:  $____\n"
             "+You save: $____/month\n"
+        ),
+    },
+
+    # --- Global Payments ---
+    {
+        "detected_at": "2024-06-10T11:00:00+00:00",
+        "competitor": "Global Payments",
+        "page_type": "Pricing",
+        "url": "https://www.globalpayments.com/en-ca/solutions",
+        "change_type": "feature",
+        "description": "Global Payments added a dedicated Canadian SMB solutions section highlighting integrated payment terminals, online payments, and a merchant portal with real-time reporting. The section emphasizes Canadian banking relationships and local support, directly positioning against Moneris's physical merchant support advantage.",
+        "customer_impact_score": 5,
+        "revenue_sensitivity": "medium",
+        "segment_affected": "SMB",
+        "diff": (
+            "--- previous\n+++ current\n"
+            "@@ -15,3 +15,11 @@\n"
+            " Solutions for Canadian businesses\n"
+            " Enterprise payment processing\n"
+            "+\n"
+            "+Small Business Solutions (NEW)\n"
+            "+Integrated terminals: countertop, wireless, and mobile\n"
+            "+Online payments: hosted checkout and API integration\n"
+            "+Merchant portal: real-time transaction reporting and analytics\n"
+            "+Local Canadian support: 24/7 bilingual customer service\n"
+            "+Canadian banking relationships: direct settlement in CAD\n"
+            "+Interac debit processing included on all plans\n"
+        ),
+    },
+    {
+        "detected_at": "2024-10-22T14:30:00+00:00",
+        "competitor": "Global Payments",
+        "page_type": "Product",
+        "url": "https://www.globalpayments.com/en-ca/industries/retail",
+        "change_type": "feature",
+        "description": "Global Payments expanded its Canadian retail page with new tap-to-pay terminal options and bundled loyalty program integration. The page emphasizes Canadian compliance features including Interac debit processing and zero-cost EMV terminals for qualifying merchants — a direct challenge to Moneris terminal bundles.",
+        "customer_impact_score": 6,
+        "revenue_sensitivity": "medium",
+        "segment_affected": "SMB",
+        "diff": (
+            "--- previous\n+++ current\n"
+            "@@ -8,4 +8,12 @@\n"
+            " Retail payment solutions\n"
+            " Accept cards in-store\n"
+            "+\n"
+            "+Hardware options (updated)\n"
+            "+Clover Flex (wireless): tap, dip, swipe — $0 with qualifying plan\n"
+            "+Countertop terminal: EMV + NFC + Interac debit\n"
+            "+\n"
+            "+Loyalty program integration (NEW)\n"
+            "+Built-in points and rewards program for retail merchants\n"
+            "+Syncs with existing POS systems\n"
+            "+Available on all Canadian merchant plans at no extra cost\n"
+        ),
+    },
+
+    # --- Clover ---
+    {
+        "detected_at": "2024-03-05T09:45:00+00:00",
+        "competitor": "Clover",
+        "page_type": "Pricing",
+        "url": "https://www.clover.com/ca/en/pricing",
+        "change_type": "pricing",
+        "description": "Clover launched Canadian-specific pricing with Starter at $14.95/month CAD including Clover Go reader, Standard at $49.95/month with Clover Mini, and Advanced at $89.95/month with Clover Station. In-person rate of 2.6% + 10c directly competes with Moneris blended rates, and the hardware-included model undercuts Moneris terminal lease programs.",
+        "customer_impact_score": 8,
+        "revenue_sensitivity": "high",
+        "segment_affected": "SMB",
+        "diff": (
+            "--- previous\n+++ current\n"
+            "@@ -1,3 +1,22 @@\n"
+            " Clover — Plans and Pricing\n"
+            "-Contact us for Canadian pricing\n"
+            "+\n"
+            "+Starter — $14.95/month CAD\n"
+            "+Includes: Clover Go reader (free)\n"
+            "+In-person: 2.6% + 10c  |  Online: 3.5% + 10c\n"
+            "+\n"
+            "+Standard — $49.95/month CAD\n"
+            "+Includes: Clover Mini terminal ($0 with plan)\n"
+            "+In-person: 2.3% + 10c  |  Online: 3.0% + 10c\n"
+            "+\n"
+            "+Advanced — $89.95/month CAD\n"
+            "+Includes: Clover Station (full POS system, $0 with plan)\n"
+            "+In-person: 2.0% + 10c  |  Online: 2.7% + 10c\n"
+            "+\n"
+            "+All plans include: Interac debit, tap-to-pay, invoicing, inventory\n"
+            "+No long-term contracts required\n"
+        ),
+    },
+    {
+        "detected_at": "2024-11-14T16:20:00+00:00",
+        "competitor": "Clover",
+        "page_type": "Product",
+        "url": "https://www.clover.com/ca/en/pos-systems",
+        "change_type": "feature",
+        "description": "Clover updated its Canadian POS systems page with the new Clover Kiosk self-service ordering device and highlighted its App Market with 300+ integrations for Canadian merchants. The emphasis on ecosystem depth and third-party integrations positions Clover as a platform play where Moneris has weaker third-party app coverage.",
+        "customer_impact_score": 6,
+        "revenue_sensitivity": "medium",
+        "segment_affected": "SMB",
+        "diff": (
+            "--- previous\n+++ current\n"
+            "@@ -12,3 +12,13 @@\n"
+            " Clover POS Systems\n"
+            " Clover Station, Mini, Flex, Go\n"
+            "+\n"
+            "+Clover Kiosk (NEW for Canada)\n"
+            "+Self-service ordering for restaurants and quick service\n"
+            "+Reduces labor costs and increases order accuracy\n"
+            "+Fully integrated with Clover POS — no extra hardware needed\n"
+            "+\n"
+            "+Clover App Market\n"
+            "+300+ apps for Canadian merchants\n"
+            "+Accounting: QuickBooks, FreshBooks, Xero\n"
+            "+Loyalty: Stamp Me, Paytronix, LevelUp\n"
+            "+Staffing: Homebase, When I Work\n"
         ),
     },
 
