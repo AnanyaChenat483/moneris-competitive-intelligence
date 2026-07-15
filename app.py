@@ -11,7 +11,7 @@ import streamlit as st
 
 import database
 import seed_data
-from config import COMPARISON_DIMENSIONS, COMPETITORS, TARGET_COMPANY
+from config import COMPARISON_DIMENSIONS, COMPETITORS, PLAY_STORE_APP_IDS, TARGET_COMPANY
 from scanner import run_scan
 
 st.set_page_config(
@@ -28,14 +28,14 @@ database.fix_error_threat_scores()
 COMPETITOR_NAMES = list(COMPETITORS.keys())
 
 COMPETITOR_COLORS = {
-    "Stripe":           "#635BFF",  # Stripe purple
-    "Square":           "#00B388",  # green
-    "PayPal":           "#003087",  # PayPal navy
-    "Shopify Payments": "#96BF48",  # Shopify green
-    "Helcim":           "#E8335D",  # red/pink
-    "Nuvei":            "#FF6B35",  # orange
-    "Global Payments":  "#00A4E4",  # light blue
-    "Clover":           "#1DA462",  # Clover green
+    "Stripe":           "#7B61FF",  # purple
+    "Square":           "#00C49A",  # teal
+    "PayPal":           "#1F77B4",  # blue
+    "Shopify Payments": "#B8DE29",  # lime
+    "Helcim":           "#E63973",  # pink
+    "Nuvei":            "#FF8C42",  # orange
+    "Global Payments":  "#00B5E2",  # cyan
+    "Clover":           "#2CA02C",  # green
 }
 
 # Ordered lists for Altair (preserves COMPETITOR_NAMES order)
@@ -954,10 +954,14 @@ with tab2:
         for competitor in COMPETITOR_NAMES:
             rec = review_data.get(competitor)
             if not rec:
+                if competitor not in PLAY_STORE_APP_IDS:
+                    msg = "No Google Play app available for this competitor."
+                else:
+                    msg = "No review data yet. Run a scan to fetch reviews."
                 cards.append(
                     f'<div class="rv-card">'
                     f'<div class="rv-header"><div class="rv-name">{_e(competitor)}</div></div>'
-                    f'<div style="color:#475569;font-size:.85rem">No review data yet for this competitor.</div>'
+                    f'<div style="color:#475569;font-size:.85rem">{msg}</div>'
                     f'</div>'
                 )
                 continue
@@ -1206,53 +1210,92 @@ with tab5:
         df = pd.DataFrame(history)
         df["scanned_at"] = pd.to_datetime(df["scanned_at"])
 
-        chart = (
+        # Latest point per competitor for the terminal dot marker
+        df_latest = (
+            df.loc[df.groupby("competitor")["scanned_at"].idxmax()]
+            .copy()
+            .reset_index(drop=True)
+        )
+
+        # Click a legend entry to highlight that competitor; click again to reset
+        sel = alt.selection_point(fields=["competitor"], bind="legend")
+
+        _x = alt.X(
+            "scanned_at:T",
+            title="Date",
+            axis=alt.Axis(
+                labelColor="#64748B", titleColor="#64748B",
+                gridColor="#1E293B", domainColor="#1E293B",
+                tickCount="year", format="%Y",
+            ),
+        )
+        _y = alt.Y(
+            "threat_score:Q",
+            title="Threat Score",
+            scale=alt.Scale(domain=[0, 10]),
+            axis=alt.Axis(
+                labelColor="#64748B", titleColor="#64748B",
+                gridColor="#1E293B", domainColor="#1E293B",
+            ),
+        )
+        _color = alt.Color(
+            "competitor:N",
+            title="Competitor",
+            scale=alt.Scale(domain=_COLOR_DOMAIN, range=_COLOR_RANGE),
+            legend=alt.Legend(
+                labelColor="#CBD5E1",
+                titleColor="#94A3B8",
+                symbolType="stroke",       # shows a line sample, not a dot
+                symbolStrokeWidth=4,
+                symbolSize=300,
+            ),
+        )
+        _opacity = alt.condition(sel, alt.value(1.0), alt.value(0.2))
+        _tooltip = [
+            alt.Tooltip("competitor:N", title="Competitor"),
+            alt.Tooltip("scanned_at:T", title="Date", format="%Y-%m-%d"),
+            alt.Tooltip("threat_score:Q", title="Threat Score", format=".1f"),
+            alt.Tooltip("reason:N", title="Why"),
+        ]
+
+        # Thick lines — non-selected fade to 20% opacity
+        layer_lines = (
             alt.Chart(df)
-            .mark_line(point=alt.OverlayMarkDef(size=60, filled=True), strokeWidth=3)
-            .encode(
-                x=alt.X(
-                    "scanned_at:T",
-                    title="Date",
-                    axis=alt.Axis(
-                        labelColor="#64748B", titleColor="#64748B",
-                        gridColor="#1E293B", domainColor="#1E293B",
-                        tickCount="year",
-                        format="%Y",
-                    ),
-                ),
-                y=alt.Y(
-                    "threat_score:Q",
-                    title="Threat Score",
-                    scale=alt.Scale(domain=[0, 10]),
-                    axis=alt.Axis(
-                        labelColor="#64748B", titleColor="#64748B",
-                        gridColor="#1E293B", domainColor="#1E293B",
-                    ),
-                ),
-                color=alt.Color(
-                    "competitor:N",
-                    title="Competitor",
-                    scale=alt.Scale(domain=_COLOR_DOMAIN, range=_COLOR_RANGE),
-                    legend=alt.Legend(labelColor="#CBD5E1", titleColor="#94A3B8"),
-                ),
-                tooltip=[
-                    alt.Tooltip("competitor:N", title="Competitor"),
-                    alt.Tooltip("scanned_at:T", title="Date", format="%Y-%m-%d"),
-                    alt.Tooltip("threat_score:Q", title="Threat Score", format=".1f"),
-                    alt.Tooltip("reason:N", title="Why"),
-                ],
-            )
-            .properties(height=420)
+            .mark_line(strokeWidth=3)
+            .encode(x=_x, y=_y, color=_color, opacity=_opacity, tooltip=_tooltip)
+        )
+
+        # Small dots at every data point
+        layer_dots = (
+            alt.Chart(df)
+            .mark_point(size=35, filled=True)
+            .encode(x=_x, y=_y, color=_color, opacity=_opacity)
+        )
+
+        # Larger hollow-ring marker only at the most recent point per competitor
+        layer_latest = (
+            alt.Chart(df_latest)
+            .mark_point(size=120, filled=False, strokeWidth=2.5)
+            .encode(x=_x, y=_y, color=_color, opacity=_opacity, tooltip=_tooltip)
+        )
+
+        chart = (
+            (layer_lines + layer_dots + layer_latest)
+            .add_params(sel)
+            .properties(height=440)
             .configure_view(strokeOpacity=0, fill="#131A2E")
             .configure_legend(
-                fillColor="#131A2E", strokeColor="#1E293B", padding=10,
-                labelFontSize=12, titleFontSize=11,
+                fillColor="#131A2E", strokeColor="#1E293B",
+                padding=12, labelFontSize=12, titleFontSize=11,
             )
             .interactive()
         )
 
         st.altair_chart(chart, use_container_width=True)
-        st.caption("Historical data seeded from real market events. New data points added with each weekly scan.")
+        st.caption(
+            "Click a competitor name in the legend to highlight its line. "
+            "Historical data seeded from real market events; new points added each scan."
+        )
 
         st.divider()
         st.markdown("**Latest Threat Scores**", unsafe_allow_html=True)

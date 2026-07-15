@@ -40,10 +40,14 @@ COMPETITORS = {
         "Pricing": "https://www.nuvei.com/",
         "Product": "https://www.nuvei.com/platform",
     },
+    # Global Payments Canadian site is behind Cloudflare bot protection (403).
+    # Developer portal returns 200 and reflects product/API changes reliably.
     "Global Payments": {
-        "Pricing": "https://www.globalpayments.com/en-ca/solutions",
-        "Product": "https://www.globalpayments.com/en-ca/industries/retail",
+        "Pricing": "https://developer.globalpay.com/",
+        "Product": "https://developer.globalpay.com/api/overview",
     },
+    # Clover Canadian pages are JS-rendered; minimal static content is stored
+    # as baseline and any structural changes will still be detected.
     "Clover": {
         "Pricing": "https://www.clover.com/ca/en/pricing",
         "Product": "https://www.clover.com/ca/en/pos-systems",
@@ -91,10 +95,10 @@ PLAY_STORE_APP_IDS = {
     "Square":           "com.squareup",
     "PayPal":           "com.paypal.android.p2pmobile",
     "Shopify Payments": "com.shopify",
-    "Helcim":           "com.helcim.helcimmobileapp",
-    "Nuvei":            "com.nuvei.android",
-    "Global Payments":  "com.globalpaymentsintegrated.mobile",
-    "Clover":           "com.clover.android",
+    "Helcim":           "com.helcim.helcim_payments_app_android",
+    "Global Payments":  "com.apriva.mobile.globalpayments.mobilepay",
+    "Clover":           "clover.companion.app",
+    # Nuvei has no Google Play app — omitted so the UI shows "No app available"
 }
 
 REVIEW_MAX_PER_COMPETITOR = 20
