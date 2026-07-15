@@ -23,7 +23,6 @@ st.set_page_config(
 database.init_db()
 seed_data.seed_if_empty()
 seed_data.seed_website_changes_if_empty()
-seed_data.seed_new_competitors_if_missing()
 database.fix_error_threat_scores()
 
 COMPETITOR_NAMES = list(COMPETITORS.keys())
