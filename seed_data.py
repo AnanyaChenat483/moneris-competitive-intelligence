@@ -611,6 +611,70 @@ def seed_if_empty() -> bool:
     return True
 
 
+_NEW_COMPETITORS = {"Global Payments", "Clover"}
+
+
+def seed_new_competitors_if_missing() -> bool:
+    """Insert historical events, threat scores, and website changes for
+    any competitor that was added after the initial seeding run.
+
+    Safe to call every startup — checks existing data before inserting.
+    Returns True if any rows were inserted.
+    """
+    latest_scores = database.get_latest_threat_scores()
+    seeded = False
+
+    for event in HISTORICAL_EVENTS:
+        if event["competitor"] not in _NEW_COMPETITORS:
+            continue
+        if event["competitor"] in latest_scores:
+            continue  # already has threat-score data
+
+        database.insert_historical_event(
+            competitor=event["competitor"],
+            date=event["date"],
+            event_type=event["event_type"],
+            description=event["description"],
+            source=event["source"],
+            impact_score=event["impact_score"],
+        )
+        smb_relevance = SMB_RELEVANCE.get(event["competitor"], 5)
+        database.insert_threat_score(
+            competitor=event["competitor"],
+            threat_score=float(event["impact_score"]),
+            review_component=float(event["impact_score"]),
+            news_component=float(event["impact_score"]),
+            feature_velocity_component=float(event["impact_score"]),
+            smb_relevance_component=float(smb_relevance),
+            reason=f"{event['date']}: {event['description']} ({event['source']})",
+            scanned_at=f"{event['date']}T00:00:00+00:00",
+        )
+        seeded = True
+
+    # Seed website changes for new competitors if they have none at all
+    existing_with_changes = {
+        c["competitor"] for c in database.get_website_changes(limit=500)
+    }
+    for change in WEBSITE_CHANGES_SEED:
+        if (change["competitor"] in _NEW_COMPETITORS
+                and change["competitor"] not in existing_with_changes):
+            database.insert_website_change(
+                competitor=change["competitor"],
+                page_type=change["page_type"],
+                url=change["url"],
+                change_type=change["change_type"],
+                description=change["description"],
+                customer_impact_score=change["customer_impact_score"],
+                revenue_sensitivity=change["revenue_sensitivity"],
+                segment_affected=change["segment_affected"],
+                diff=change["diff"],
+                detected_at=change["detected_at"],
+            )
+            seeded = True
+
+    return seeded
+
+
 def seed_website_changes_if_empty() -> bool:
     """Insert historical website changes if the table is empty.
 

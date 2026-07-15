@@ -23,6 +23,7 @@ st.set_page_config(
 database.init_db()
 seed_data.seed_if_empty()
 seed_data.seed_website_changes_if_empty()
+seed_data.seed_new_competitors_if_missing()
 database.fix_error_threat_scores()
 
 COMPETITOR_NAMES = list(COMPETITORS.keys())
@@ -370,8 +371,30 @@ def _hex_to_rgb(hex_color: str) -> tuple:
 
 
 def _safe_str(s) -> str:
-    """Encode a string to Latin-1 for fpdf2 built-in fonts, replacing unknowns."""
-    return str(s or "").encode("latin-1", errors="replace").decode("latin-1")
+    """Translate common Unicode chars to ASCII equivalents for fpdf2 built-in fonts."""
+    _UNICODE_MAP = {
+        "—": "--",   # em dash
+        "–": "-",    # en dash
+        "‘": "'",    # left single quote
+        "’": "'",    # right single quote (apostrophe)
+        "“": '"',    # left double quote
+        "”": '"',    # right double quote
+        "…": "...",  # ellipsis
+        "·": "*",    # middle dot
+        "©": "(c)",  # copyright
+        "®": "(R)",  # registered trademark
+        "™": "(TM)", # trademark
+        "°": "deg",  # degree
+        "→": "->",   # right arrow
+        "←": "<-",   # left arrow
+        "•": "-",    # bullet
+        "½": "1/2",  # half
+        "¼": "1/4",  # quarter
+    }
+    text = str(s or "")
+    for char, replacement in _UNICODE_MAP.items():
+        text = text.replace(char, replacement)
+    return text.encode("latin-1", errors="replace").decode("latin-1")
 
 
 def _generate_pdf_report() -> bytes:
@@ -417,7 +440,7 @@ def _generate_pdf_report() -> bytes:
         pdf.set_xy(18, y + 1)
         pdf.set_text_color(0, 212, 170)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(0, 5, title.upper())
+        pdf.cell(0, 5, _safe_str(title).upper())
         pdf.set_y(y + 9)
 
     def _divider():
@@ -496,7 +519,7 @@ def _generate_pdf_report() -> bytes:
     pdf.ln(3)
 
     # ── Website Changes (top 5) ─────────────────────────────────────────────
-    _section_header("Website Changes — Top 5 by Impact")
+    _section_header("Website Changes - Top 5 by Impact")
 
     changes = database.get_website_changes(limit=500)
     changes = [c for c in changes if c.get("customer_impact_score", 0) >= 2]
@@ -566,7 +589,7 @@ def _generate_pdf_report() -> bytes:
     pdf.ln(2)
 
     # ── Latest News (top 5) ─────────────────────────────────────────────────
-    _section_header("Latest News Highlights — Top 5 by Relevance")
+    _section_header("Latest News Highlights - Top 5 by Relevance")
 
     articles = database.get_news_articles(limit=500)
     articles = sorted(articles, key=lambda a: a.get("relevance_to_moneris", 0), reverse=True)[:5]
@@ -735,20 +758,18 @@ for competitor in COMPETITOR_NAMES:
                 delta_html = '<div class="kpi-delta dl-eq">&#8212; stable vs last scan</div>'
         else:
             delta_html = '<div class="kpi-delta dl-eq">First scan</div>'
-        c_color = COMPETITOR_COLORS.get(competitor, "#475569")
         cards_html.append(
-            f'<div class="kpi-card" style="border-left:3px solid {c_color}">'
-            f'<div class="kpi-name" style="color:{c_color}">{_e(competitor)}</div>'
+            f'<div class="kpi-card">'
+            f'<div class="kpi-name">{_e(competitor)}</div>'
             f'<div style="font-size:.6rem;color:#374151;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Threat Score</div>'
             f'<div class="kpi-score {sc}">{score:.1f}</div>'
             f'{delta_html}'
             f'</div>'
         )
     else:
-        c_color = COMPETITOR_COLORS.get(competitor, "#475569")
         cards_html.append(
-            f'<div class="kpi-card" style="border-left:3px solid {c_color}">'
-            f'<div class="kpi-name" style="color:{c_color}">{_e(competitor)}</div>'
+            f'<div class="kpi-card">'
+            f'<div class="kpi-name">{_e(competitor)}</div>'
             f'<div style="font-size:.6rem;color:#374151;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Threat Score</div>'
             f'<div class="kpi-score sc-grey">&#8212;</div>'
             f'<div class="kpi-delta dl-eq">No data</div>'
@@ -1188,7 +1209,7 @@ with tab5:
 
         chart = (
             alt.Chart(df)
-            .mark_line(point=alt.OverlayMarkDef(size=60, filled=True))
+            .mark_line(point=alt.OverlayMarkDef(size=60, filled=True), strokeWidth=3)
             .encode(
                 x=alt.X(
                     "scanned_at:T",
