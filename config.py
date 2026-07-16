@@ -32,13 +32,17 @@ COMPETITORS = {
         "Pricing": "https://www.shopify.com/ca/pricing",
         "Product": "https://www.shopify.com/ca/payments",
     },
+    # helcim.com blocks all scrapers (Cloudflare 403 on every path and UA).
+    # learn.helcim.com is their public knowledge base — server-side rendered,
+    # accessible, and meaningful: docs hub (~9k words) + payment tools page
+    # (~16k words) will change when Helcim updates features or onboarding.
     "Helcim": {
-        "Pricing": "https://www.helcim.com/pricing/",
-        "Product": "https://www.helcim.com/",
+        "Docs": "https://learn.helcim.com/",
+        "Product": "https://learn.helcim.com/docs/helcim-payment-tools",
     },
     "Nuvei": {
         "Pricing": "https://www.nuvei.com/",
-        "Product": "https://www.nuvei.com/platform",
+        "Product": "https://www.nuvei.com/payment-solution",
     },
     # globalpayments.com is fully behind Cloudflare (403 on every path).
     # Heartland Payment Systems (heartland.us) is a Global Payments brand;
