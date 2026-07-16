@@ -424,7 +424,7 @@ WEBSITE_CHANGES_SEED = [
 
     # --- Global Payments ---
     {
-        "detected_at": "2024-06-10T11:00:00+00:00",
+        "detected_at": "2026-05-20T11:00:00+00:00",
         "competitor": "Global Payments",
         "page_type": "Pricing",
         "url": "https://www.globalpayments.com/en-ca/solutions",
@@ -449,7 +449,7 @@ WEBSITE_CHANGES_SEED = [
         ),
     },
     {
-        "detected_at": "2024-10-22T14:30:00+00:00",
+        "detected_at": "2026-06-18T14:30:00+00:00",
         "competitor": "Global Payments",
         "page_type": "Product",
         "url": "https://www.globalpayments.com/en-ca/industries/retail",
@@ -477,7 +477,7 @@ WEBSITE_CHANGES_SEED = [
 
     # --- Clover ---
     {
-        "detected_at": "2024-03-05T09:45:00+00:00",
+        "detected_at": "2026-05-28T09:45:00+00:00",
         "competitor": "Clover",
         "page_type": "Pricing",
         "url": "https://www.clover.com/ca/en/pricing",
@@ -509,7 +509,7 @@ WEBSITE_CHANGES_SEED = [
         ),
     },
     {
-        "detected_at": "2024-11-14T16:20:00+00:00",
+        "detected_at": "2026-06-25T16:20:00+00:00",
         "competitor": "Clover",
         "page_type": "Product",
         "url": "https://www.clover.com/ca/en/pos-systems",
@@ -663,16 +663,25 @@ def seed_new_competitors_if_missing() -> bool:
 
 
 def seed_website_changes_if_empty() -> bool:
-    """Insert historical website changes if the table is empty.
+    """Insert historical website changes for any competitor that has none yet.
 
-    Returns True if seeding occurred, False if data already exists.
+    Checks per-competitor rather than table-wide so that adding new competitors
+    to WEBSITE_CHANGES_SEED will backfill them even when other competitors
+    already have data.
+
+    Returns True if any rows were inserted.
     """
-    if database.get_website_changes(limit=1):
-        return False
+    existing = database.get_website_changes(limit=1000)
+    competitors_with_data = {r["competitor"] for r in existing}
 
+    seeded_competitors: set = set()
+    seeded = False
     for change in WEBSITE_CHANGES_SEED:
+        comp = change["competitor"]
+        if comp in competitors_with_data:
+            continue
         database.insert_website_change(
-            competitor=change["competitor"],
+            competitor=comp,
             page_type=change["page_type"],
             url=change["url"],
             change_type=change["change_type"],
@@ -683,5 +692,7 @@ def seed_website_changes_if_empty() -> bool:
             diff=change["diff"],
             detected_at=change["detected_at"],
         )
+        seeded_competitors.add(comp)
+        seeded = True
 
-    return True
+    return seeded

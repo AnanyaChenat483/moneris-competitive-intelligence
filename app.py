@@ -1227,7 +1227,10 @@ with tab5:
             axis=alt.Axis(
                 labelColor="#64748B", titleColor="#64748B",
                 gridColor="#1E293B", domainColor="#1E293B",
-                tickCount="year", format="%Y",
+                format="%b %Y",
+                tickCount=6,
+                labelAngle=-30,
+                labelOverlap=True,
             ),
         )
         _y = alt.Y(
@@ -1293,10 +1296,7 @@ with tab5:
         )
 
         st.altair_chart(chart, use_container_width=True)
-        st.info(
-            "Trend data builds up over time with each weekly scan. "
-            "If the chart is empty, run your first scan from the sidebar."
-        )
+        st.info("Trend data builds up over time with each weekly scan.")
         st.caption(
             "Click a competitor name in the legend to highlight its line."
         )
