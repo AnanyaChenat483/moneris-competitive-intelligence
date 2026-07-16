@@ -463,18 +463,22 @@ def delete_seeded_threat_scores() -> int:
     Returns the number of rows deleted.  Safe to call every startup — is a
     no-op once seeded rows have been removed.
     """
-    client = _client()
-    resp = (
-        client.table("threat_scores")
-        .select("id")
-        .lt("scanned_at", "2025-01-01T00:00:00+00:00")
-        .execute()
-    )
-    rows = resp.data or []
-    if not rows:
-        _log("delete_seeded_threat_scores: nothing to delete")
+    try:
+        client = _client()
+        resp = (
+            client.table("threat_scores")
+            .select("id")
+            .lt("scanned_at", "2025-01-01T00:00:00+00:00")
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            _log("delete_seeded_threat_scores: nothing to delete")
+            return 0
+        ids = [r["id"] for r in rows]
+        client.table("threat_scores").delete().in_("id", ids).execute()
+        _log(f"delete_seeded_threat_scores: deleted {len(ids)} seeded row(s)")
+        return len(ids)
+    except Exception as exc:
+        _log(f"delete_seeded_threat_scores: skipped — {exc}")
         return 0
-    ids = [r["id"] for r in rows]
-    client.table("threat_scores").delete().in_("id", ids).execute()
-    _log(f"delete_seeded_threat_scores: deleted {len(ids)} seeded row(s)")
-    return len(ids)
