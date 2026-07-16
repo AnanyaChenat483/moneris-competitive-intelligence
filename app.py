@@ -24,6 +24,7 @@ database.init_db()
 seed_data.seed_if_empty()
 seed_data.seed_website_changes_if_empty()
 database.fix_error_threat_scores()
+database.delete_seeded_threat_scores()
 
 COMPETITOR_NAMES = list(COMPETITORS.keys())
 
@@ -1292,9 +1293,12 @@ with tab5:
         )
 
         st.altair_chart(chart, use_container_width=True)
+        st.info(
+            "Trend data builds up over time with each weekly scan. "
+            "If the chart is empty, run your first scan from the sidebar."
+        )
         st.caption(
-            "Click a competitor name in the legend to highlight its line. "
-            "Historical data seeded from real market events; new points added each scan."
+            "Click a competitor name in the legend to highlight its line."
         )
 
         st.divider()

@@ -571,7 +571,12 @@ WEBSITE_CHANGES_SEED = [
 # ---------------------------------------------------------------------------
 
 def seed_if_empty() -> bool:
-    """Insert historical events and baseline threat scores if not already seeded.
+    """Insert historical events if not already seeded.
+
+    Only seeds the historical_events table (used for the expandable event log
+    in the Trends tab).  Threat scores are NOT seeded here — they are
+    generated exclusively by real scan runs so the Trends chart reflects
+    actual data.
 
     Returns True if seeding occurred, False if the database was already seeded.
     """
@@ -588,24 +593,6 @@ def seed_if_empty() -> bool:
             description=event["description"],
             source=event["source"],
             impact_score=event["impact_score"],
-        )
-
-    # Seed baseline threat-score history so the Trends tab has data points
-    # before the first live scan. Each historical event becomes a data point
-    # with the event's impact score standing in for the threat score at that
-    # time, and the event description as the attribution reason.
-    for event in HISTORICAL_EVENTS:
-        smb_relevance = SMB_RELEVANCE.get(event["competitor"], 5)
-        timestamp = f"{event['date']}T00:00:00+00:00"
-        database.insert_threat_score(
-            competitor=event["competitor"],
-            threat_score=float(event["impact_score"]),
-            review_component=float(event["impact_score"]),
-            news_component=float(event["impact_score"]),
-            feature_velocity_component=float(event["impact_score"]),
-            smb_relevance_component=float(smb_relevance),
-            reason=f"{event['date']}: {event['description']} ({event['source']})",
-            scanned_at=timestamp,
         )
 
     return True

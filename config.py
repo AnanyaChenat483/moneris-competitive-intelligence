@@ -40,11 +40,12 @@ COMPETITORS = {
         "Pricing": "https://www.nuvei.com/",
         "Product": "https://www.nuvei.com/platform",
     },
-    # Global Payments Canadian site is behind Cloudflare bot protection (403).
-    # Developer portal returns 200 and reflects product/API changes reliably.
+    # globalpayments.com is behind Cloudflare (403). Heartland Payment Systems
+    # is a Global Payments brand operating in Canada; these pages return 200
+    # with rich pricing and product content (~400-1100 words).
     "Global Payments": {
-        "Pricing": "https://developer.globalpay.com/",
-        "Product": "https://developer.globalpay.com/api/overview",
+        "Pricing": "https://www.heartlandpaymentsystems.com/pricing",
+        "Product": "https://www.heartlandpaymentsystems.com/point-of-sale",
     },
     # Clover Canadian pages are JS-rendered; minimal static content is stored
     # as baseline and any structural changes will still be detected.

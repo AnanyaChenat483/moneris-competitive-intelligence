@@ -450,3 +450,31 @@ def fix_error_threat_scores() -> None:
                 )
             }
         ).in_("id", ids).execute()
+
+
+def delete_seeded_threat_scores() -> int:
+    """Delete fake/seeded threat scores inserted by seed_data.py.
+
+    Seeded rows all have scanned_at timestamps at midnight UTC (T00:00:00)
+    from 2023-2024.  Real scan rows use _now() which produces actual times.
+    Deletes every row with scanned_at before 2025-01-01 (safely covers all
+    seed dates without touching live scan data).
+
+    Returns the number of rows deleted.  Safe to call every startup — is a
+    no-op once seeded rows have been removed.
+    """
+    client = _client()
+    resp = (
+        client.table("threat_scores")
+        .select("id")
+        .lt("scanned_at", "2025-01-01T00:00:00+00:00")
+        .execute()
+    )
+    rows = resp.data or []
+    if not rows:
+        _log("delete_seeded_threat_scores: nothing to delete")
+        return 0
+    ids = [r["id"] for r in rows]
+    client.table("threat_scores").delete().in_("id", ids).execute()
+    _log(f"delete_seeded_threat_scores: deleted {len(ids)} seeded row(s)")
+    return len(ids)
