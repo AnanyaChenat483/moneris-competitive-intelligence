@@ -40,18 +40,19 @@ COMPETITORS = {
         "Pricing": "https://www.nuvei.com/",
         "Product": "https://www.nuvei.com/platform",
     },
-    # globalpayments.com is behind Cloudflare (403). Heartland Payment Systems
-    # is a Global Payments brand operating in Canada; these pages return 200
-    # with rich pricing and product content (~400-1100 words).
+    # globalpayments.com is fully behind Cloudflare (403 on every path).
+    # Heartland Payment Systems (heartland.us) is a Global Payments brand;
+    # both pages return 200 with rich content (1400-2500 words).
     "Global Payments": {
-        "Pricing": "https://www.heartlandpaymentsystems.com/pricing",
-        "Product": "https://www.heartlandpaymentsystems.com/point-of-sale",
+        "Home": "https://www.heartland.us/",
+        "POS": "https://www.heartland.us/products/point-of-sale",
     },
-    # Clover Canadian pages are JS-rendered; minimal static content is stored
-    # as baseline and any structural changes will still be detected.
+    # clover.com pages are JS-rendered shells (~261 words). blog.clover.com
+    # is plain HTML (18+ headings, 2800+ words) and changes on every new post,
+    # making it the most meaningful monitoring target for Clover.
     "Clover": {
+        "Blog": "https://blog.clover.com/",
         "Pricing": "https://www.clover.com/ca/en/pricing",
-        "Product": "https://www.clover.com/ca/en/pos-systems",
     },
 }
 
