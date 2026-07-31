@@ -2,6 +2,8 @@
 
 import email.utils
 import html as _html
+import re
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 
@@ -334,22 +336,70 @@ def _parse_detected_at(s: str):
         return datetime.min.replace(tzinfo=timezone.utc)
 
 
+_DEDUP_STOPWORDS = {
+    "a", "an", "the", "and", "or", "but", "if", "then", "than", "as", "at", "by",
+    "for", "from", "in", "into", "of", "on", "onto", "to", "with", "within",
+    "is", "are", "was", "were", "be", "been", "being", "this", "that", "these",
+    "those", "it", "its", "their", "they", "which", "while", "over", "under",
+    "new", "now", "also",
+}
+
+# Character-level ratio catches near-verbatim rewrites; word-vector cosine
+# catches paraphrases that share meaning but little literal text overlap
+# (e.g. reordered sentences, different framing of the same underlying change).
+_DEDUP_SEQUENCE_THRESHOLD = 0.65
+_DEDUP_SEMANTIC_THRESHOLD = 0.45
+_DEDUP_WINDOW_DAYS = 7
+
+
+def _semantic_tokens(text: str) -> Counter:
+    """Word-frequency vector for a description: lowercased, punctuation-stripped, stopwords removed."""
+    words = re.findall(r"[a-z0-9]+", (text or "").lower())
+    return Counter(w for w in words if w not in _DEDUP_STOPWORDS and len(w) > 2)
+
+
+def _cosine_similarity(a: Counter, b: Counter) -> float:
+    """Cosine similarity between two word-frequency vectors."""
+    common = set(a) & set(b)
+    dot = sum(a[w] * b[w] for w in common)
+    mag_a = sum(v * v for v in a.values()) ** 0.5
+    mag_b = sum(v * v for v in b.values()) ** 0.5
+    if mag_a == 0 or mag_b == 0:
+        return 0.0
+    return dot / (mag_a * mag_b)
+
+
+def _is_near_duplicate(desc_a: str, desc_b: str) -> bool:
+    """True if two change descriptions are near-duplicates, by literal text or by meaning.
+
+    SequenceMatcher alone misses duplicates that Claude has paraphrased
+    differently across scans (same underlying site change, different wording) —
+    those need the semantic (word-overlap) signal instead.
+    """
+    seq_ratio = SequenceMatcher(None, desc_a or "", desc_b or "").ratio()
+    if seq_ratio > _DEDUP_SEQUENCE_THRESHOLD:
+        return True
+    semantic_ratio = _cosine_similarity(_semantic_tokens(desc_a), _semantic_tokens(desc_b))
+    return semantic_ratio > _DEDUP_SEMANTIC_THRESHOLD
+
+
 def _deduplicate_changes(changes: list[dict]) -> list[dict]:
-    """Remove near-duplicate changes (same competitor + day, description similarity > 65%)."""
+    """Remove near-duplicate changes: same competitor, detected within the same
+    week, with similar descriptions (literal or semantic similarity)."""
     if not changes:
         return changes
     kept: list[dict] = []
     for change in changes:
-        date_only = (change["detected_at"] or "").split("T")[0]
+        change_dt = _parse_detected_at(change.get("detected_at", ""))
         competitor = change["competitor"]
         dup_idx = None
         for i, k in enumerate(kept):
             if k["competitor"] != competitor:
                 continue
-            if (k["detected_at"] or "").split("T")[0] != date_only:
+            k_dt = _parse_detected_at(k.get("detected_at", ""))
+            if abs((change_dt - k_dt).days) > _DEDUP_WINDOW_DAYS:
                 continue
-            ratio = SequenceMatcher(None, change["description"], k["description"]).ratio()
-            if ratio > 0.65:
+            if _is_near_duplicate(change["description"], k["description"]):
                 dup_idx = i
                 break
         if dup_idx is not None:
