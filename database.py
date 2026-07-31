@@ -172,14 +172,15 @@ def get_website_changes(limit: int = 100, competitor: str = None, change_type: s
 
 def insert_product_intelligence(competitor: str, page_type: str, url: str, raw_change: str,
                                   competitor_move: str, moneris_product: str,
-                                  threat_level: str, recommended_action: str) -> None:
+                                  threat_level: str, recommended_action: str,
+                                  detected_at: str = None, analyzed_at: str = None) -> None:
     now = _now()
     _log(f"insert_product_intelligence({competitor!r}, {page_type!r}) product={moneris_product!r}")
     try:
         resp = _client().table("product_intelligence").insert(
             {
-                "detected_at": now,
-                "analyzed_at": now,
+                "detected_at": detected_at or now,
+                "analyzed_at": analyzed_at or now,
                 "competitor": competitor,
                 "page_type": page_type,
                 "url": url,

@@ -33,6 +33,10 @@ st.set_page_config(
 database.init_db()
 seed_data.seed_if_empty()
 seed_data.seed_website_changes_if_empty()
+try:
+    seed_data.seed_product_intelligence_if_empty()
+except Exception:
+    pass  # product_intelligence table not created yet (see schema.sql) — tab shows its own message
 database.fix_error_threat_scores()
 database.delete_seeded_threat_scores()
 

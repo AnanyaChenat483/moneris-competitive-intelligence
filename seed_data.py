@@ -696,3 +696,211 @@ def seed_website_changes_if_empty() -> bool:
         seeded = True
 
     return seeded
+
+
+# ---------------------------------------------------------------------------
+# Product intelligence — seed for the Product Intelligence tab (demo data)
+# ---------------------------------------------------------------------------
+
+# 8 real, recent competitor product moves mapped to the Moneris product area
+# each one threatens (or the gap it reveals), in the structure specified for
+# product_intelligence. Sourced from the same changelog/newsroom/blog pages
+# tracked in config.PRODUCT_UPDATE_PAGES; Helcim's page_type/url instead match
+# its existing WEBSITE_CHANGES_SEED entry since helcim.com's product-update
+# pages are Cloudflare-blocked and not tracked live.
+PRODUCT_INTELLIGENCE_SEED = [
+    {
+        "detected_at": "2026-07-15T09:00:00+00:00",
+        "competitor": "Stripe",
+        "page_type": "Shipped",
+        "url": "https://stripe.com/shipped",
+        "raw_change": (
+            "Stripe Terminal now supports a standalone mode for taking payments on card "
+            "readers without requiring custom code or a point-of-sale system — reader "
+            "configuration, payment collection, and receipts all run directly on the device."
+        ),
+        "competitor_move": (
+            "Stripe shipped a standalone mode for Stripe Terminal, letting merchants accept "
+            "card payments directly on the reader with no code and no POS system required."
+        ),
+        "moneris_product": "Moneris Go Terminal / Go Retail POS / Go Restaurant POS",
+        "threat_level": "High",
+        "recommended_action": (
+            "Evaluate a no-code standalone acceptance mode for Go Terminal so merchants "
+            "aren't forced into a full POS setup just to take a card payment."
+        ),
+    },
+    {
+        "detected_at": "2026-05-06T10:00:00+00:00",
+        "competitor": "Stripe",
+        "page_type": "Newsroom",
+        "url": "https://stripe.com/newsroom/news",
+        "raw_change": (
+            "At Sessions 2026, Stripe announced roughly 288 product updates, headlined by an "
+            "Agentic Commerce Suite that lets AI agents discover products, negotiate terms, "
+            "and complete checkout on a merchant's behalf via Stripe's APIs."
+        ),
+        "competitor_move": (
+            "Stripe unveiled an Agentic Commerce Suite at Sessions 2026, giving AI agents "
+            "direct API access to browse, negotiate, and check out on behalf of shoppers."
+        ),
+        "moneris_product": "Moneris MCP Server / Developer tools",
+        "threat_level": "High",
+        "recommended_action": (
+            "Prioritize agentic-commerce support on the Moneris MCP Server roadmap before "
+            "agent-driven checkout becomes a baseline developer expectation."
+        ),
+    },
+    {
+        "detected_at": "2026-03-10T11:00:00+00:00",
+        "competitor": "Square",
+        "page_type": "What's new",
+        "url": "https://squareup.com/ca/en/whats-new",
+        "raw_change": (
+            "Square rolled out Tap to Pay on iPhone to Canadian merchants, letting them accept "
+            "contactless card and digital wallet payments directly on an iPhone with no "
+            "additional hardware or reader."
+        ),
+        "competitor_move": (
+            "Square launched Tap to Pay on iPhone in Canada, letting merchants accept "
+            "contactless payments on their own phone with zero extra hardware."
+        ),
+        "moneris_product": "PAYD / Tap to Pay",
+        "threat_level": "High",
+        "recommended_action": (
+            "Confirm PAYD's Tap to Pay parity on iPhone in Canada — hardware-free acceptance "
+            "removes a key reason merchants would buy a Go Terminal device."
+        ),
+    },
+    {
+        "detected_at": "2026-06-02T09:30:00+00:00",
+        "competitor": "Shopify Payments",
+        "page_type": "Changelog",
+        "url": "https://changelog.shopify.com",
+        "raw_change": (
+            "Shopify shipped over 150 platform updates in a single release cycle, including "
+            "B2B auto-charge — automatically billing a wholesale buyer's saved payment method "
+            "against net-terms invoices without manual follow-up."
+        ),
+        "competitor_move": (
+            "Shopify shipped 150+ platform updates including B2B auto-charge, which "
+            "automatically bills wholesale buyers' saved payment methods against net-terms "
+            "invoices."
+        ),
+        "moneris_product": "Moneris Online / Total Commerce",
+        "threat_level": "Medium",
+        "recommended_action": (
+            "Assess whether Moneris Total Commerce needs an automated net-terms billing "
+            "capability to stay competitive for B2B/wholesale merchants."
+        ),
+    },
+    {
+        "detected_at": "2024-11-12T14:00:00+00:00",
+        "competitor": "Nuvei",
+        "page_type": "Newsroom",
+        "url": "https://www.nuvei.com/post-category/newsroom",
+        "raw_change": (
+            "Nuvei announced a $2.75B acquisition of Payoneer, adding Payoneer's global "
+            "cross-border payout and marketplace-settlement network to Nuvei's payment platform."
+        ),
+        "competitor_move": (
+            "Nuvei acquired Payoneer for $2.75B, instantly adding large-scale cross-border "
+            "payout and settlement infrastructure to its platform."
+        ),
+        "moneris_product": "No Moneris equivalent (gap)",
+        "threat_level": "High",
+        "recommended_action": (
+            "Evaluate a cross-border payout/settlement partnership, since Moneris has no "
+            "comparable large-scale international payout capability today."
+        ),
+    },
+    {
+        "detected_at": "2026-02-18T13:00:00+00:00",
+        "competitor": "PayPal",
+        "page_type": "Newsroom (Canada)",
+        "url": "https://newsroom.ca.paypal-corp.com/",
+        "raw_change": (
+            "PayPal launched a no-fee 'Pay in 4' buy-now-pay-later option for Canadian "
+            "shoppers, letting them split purchases into four interest-free installments at "
+            "no cost to the merchant beyond standard processing."
+        ),
+        "competitor_move": (
+            "PayPal launched no-fee BNPL (Pay in 4) for Canadian shoppers, letting them split "
+            "purchases into four interest-free installments."
+        ),
+        "moneris_product": "No Moneris equivalent (gap)",
+        "threat_level": "Medium",
+        "recommended_action": (
+            "Explore a BNPL partnership or native installment option, since Moneris currently "
+            "has no buy-now-pay-later product for merchants to offer."
+        ),
+    },
+    {
+        "detected_at": "2026-04-22T10:30:00+00:00",
+        "competitor": "Clover",
+        "page_type": "Blog",
+        "url": "https://blog.clover.com/",
+        "raw_change": (
+            "Clover added new integrations to its App Market, expanding third-party software "
+            "choices — accounting, loyalty, and staffing apps — available directly on Clover "
+            "POS devices."
+        ),
+        "competitor_move": (
+            "Clover expanded its App Market with new third-party integrations spanning "
+            "accounting, loyalty, and staffing apps for Clover POS devices."
+        ),
+        "moneris_product": "Moneris Go Terminal / Go Retail POS / Go Restaurant POS",
+        "threat_level": "Medium",
+        "recommended_action": (
+            "Grow the Go Retail POS third-party app ecosystem so merchants don't choose "
+            "Clover purely for its broader app marketplace."
+        ),
+    },
+    {
+        "detected_at": "2024-08-19T13:21:00+00:00",
+        "competitor": "Helcim",
+        "page_type": "Pricing",
+        "url": "https://www.helcim.com/pricing/",
+        "raw_change": (
+            "Helcim added an interactive interchange-plus pricing calculator to its pricing "
+            "page, showing merchants their estimated monthly cost based on volume and card "
+            "mix, with a side-by-side comparison against flat-rate processors."
+        ),
+        "competitor_move": (
+            "Helcim published an interactive interchange-plus pricing calculator that shows "
+            "merchants their estimated monthly costs and how much they'd save versus "
+            "flat-rate pricing."
+        ),
+        "moneris_product": "No Moneris equivalent (gap)",
+        "threat_level": "Medium",
+        "recommended_action": (
+            "Build a public-facing interchange-plus cost calculator for Moneris to compete on "
+            "pricing transparency, a growing decision factor for cost-conscious merchants."
+        ),
+    },
+]
+
+
+def seed_product_intelligence_if_empty() -> bool:
+    """Insert seed product-intelligence rows if the table has none yet.
+
+    Returns True if seeding occurred, False if the table already had data.
+    """
+    if database.get_product_intelligence(limit=1):
+        return False
+
+    for row in PRODUCT_INTELLIGENCE_SEED:
+        database.insert_product_intelligence(
+            competitor=row["competitor"],
+            page_type=row["page_type"],
+            url=row["url"],
+            raw_change=row["raw_change"],
+            competitor_move=row["competitor_move"],
+            moneris_product=row["moneris_product"],
+            threat_level=row["threat_level"],
+            recommended_action=row["recommended_action"],
+            detected_at=row["detected_at"],
+            analyzed_at=row["detected_at"],
+        )
+
+    return True
