@@ -87,8 +87,12 @@ _WEBSITE_CHANGE_SCHEMA = {
             "description": (
                 "The Moneris customer segment most affected by this change. Choose exactly "
                 "one of: SMB (small and medium businesses), LAKA (Large and Key Accounts — "
-                "enterprise/high volume merchants), Partners (distribution partners, channel "
-                "partners, ISVs), or Developers (API/integration focused)."
+                "enterprise/high volume merchants), Partners (third parties who resell, embed, "
+                "or distribute the competitor's payments product to their own customers — "
+                "channel/reseller programs, ISV integrations, white-label arrangements, "
+                "distribution partnerships, or API partner programs), or Developers (the "
+                "competitor's own direct-merchant API/SDK for merchants integrating payments "
+                "into their own app or site)."
             ),
         },
     },
@@ -131,8 +135,17 @@ Classify this change and assess its significance for {TARGET_COMPANY}.
 For segment_affected, choose exactly one of {TARGET_COMPANY}'s four internal customer segments:
 - SMB: small and medium businesses
 - LAKA: Large and Key Accounts — enterprise/high volume merchants
-- Partners: distribution partners, channel partners, ISVs
-- Developers: API/integration focused"""
+- Partners: third parties who resell, embed, or distribute the competitor's payments
+  product to their own customers, rather than using it directly as a merchant. Use
+  Partners when the change involves any of: channel partner or reseller programs,
+  ISV (independent software vendor) integrations, white-label arrangements, distribution
+  partnerships, or API partner programs aimed at other businesses building on top of
+  the platform to serve their own end customers.
+- Developers: the competitor's direct-merchant API/SDK/documentation — i.e. a merchant
+  integrating payments into its own app or site, not a third party building a product
+  to resell. If the change is about enabling *other companies* to embed or resell the
+  platform, classify it as Partners even if it's phrased as an "API" or "integration"
+  offering."""
 
     result = _create(_WEBSITE_CHANGE_SCHEMA, prompt)
     result["customer_impact_score"] = int(_clamp(result["customer_impact_score"], 1, 10))
