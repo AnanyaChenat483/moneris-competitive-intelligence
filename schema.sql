@@ -36,18 +36,23 @@ CREATE TABLE IF NOT EXISTS website_changes (
 );
 ALTER TABLE website_changes DISABLE ROW LEVEL SECURITY;
 
--- Product intelligence: Claude's mapping of each page_type='product_updates' website
--- change to the Moneris product area it threatens (or gap it reveals). One row per
--- detected product-update change; powers the Product Intelligence tab.
+-- Product intelligence: Claude's mapping of each detected product_updates change to
+-- the Moneris product area it threatens, or the gap it reveals (moneris_product =
+-- 'No Moneris equivalent (gap)' — there is no separate boolean gap flag; that value
+-- is the single source of truth for gap status). One row per detected product-update
+-- change; powers the Product Intelligence tab. page_type holds the specific source
+-- page label (e.g. "Changelog", "Newsroom"); raw_change holds the underlying
+-- website-change description this mapping was derived from.
 CREATE TABLE IF NOT EXISTS product_intelligence (
     id                  BIGSERIAL PRIMARY KEY,
+    detected_at         TEXT NOT NULL,
     analyzed_at         TEXT NOT NULL,
-    website_change_id   BIGINT REFERENCES website_changes(id),
     competitor          TEXT NOT NULL,
+    page_type           TEXT NOT NULL,
     url                 TEXT NOT NULL,
+    raw_change          TEXT NOT NULL,
     competitor_move     TEXT NOT NULL,
     moneris_product     TEXT NOT NULL,
-    is_gap              BOOLEAN NOT NULL DEFAULT FALSE,
     threat_level        TEXT NOT NULL,
     recommended_action  TEXT NOT NULL
 );

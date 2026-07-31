@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from config import (
     CLAUDE_MODEL,
     COMPARISON_DIMENSIONS,
+    MONERIS_GAP_LABEL,
     MONERIS_PRODUCT_AREAS,
     SEGMENTS_AFFECTED,
     TARGET_COMPANY,
@@ -169,17 +170,10 @@ _PRODUCT_INTELLIGENCE_SCHEMA = {
             "type": "string",
             "enum": MONERIS_PRODUCT_AREAS,
             "description": (
-                "The single Moneris product area most at risk from this change, or "
-                "'No Moneris equivalent (gap)' if Moneris has no comparable offering at all."
-            ),
-        },
-        "is_gap": {
-            "type": "boolean",
-            "description": (
-                "True if Moneris has no comparable capability at all for this specific "
-                "change (a genuine product gap). False if Moneris's product in that area "
-                "already offers a roughly comparable capability, even if this specific "
-                "change still puts competitive pressure on it."
+                f"The single Moneris product area most at risk from this change, or "
+                f"'{MONERIS_GAP_LABEL}' if Moneris has no comparable offering at all — "
+                f"this is the only signal for whether the change is a product gap, so use "
+                f"it whenever Moneris has no roughly comparable capability."
             ),
         },
         "threat_level": {
@@ -192,7 +186,7 @@ _PRODUCT_INTELLIGENCE_SCHEMA = {
             "description": "One sentence of concrete, actionable guidance for the relevant Moneris product team.",
         },
     },
-    "required": ["competitor_move", "moneris_product", "is_gap", "threat_level", "recommended_action"],
+    "required": ["competitor_move", "moneris_product", "threat_level", "recommended_action"],
     "additionalProperties": False,
 }
 

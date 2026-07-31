@@ -27,6 +27,12 @@ FEATURE_VELOCITY_BASELINE = 2.0  # used when no website changes detected this sc
 NEWS_MOMENTUM_BASELINE = 3.0  # used when no news articles are available this scan
 
 
+# Streamlit Cloud captures stdout — use print(flush=True) so these show up in
+# server logs even though the sidebar's live log only keeps the last 25 lines.
+def _log(msg: str) -> None:
+    print(f"[SCAN] {msg}", flush=True)
+
+
 def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -122,32 +128,46 @@ def _scan_product_updates(competitor: str, report) -> list[dict]:
     """
     detected_changes = []
     pages = PRODUCT_UPDATE_PAGES.get(competitor, {})
+    _log(f"{competitor}: {len(pages)} product-update page(s) configured: {list(pages.keys())}")
 
     for label, url in pages.items():
         snapshot_key = f"product_updates::{label}"
         report(f"  [Product Updates] {label}: {url}")
+        _log(f"{competitor} / {label}: fetching {url}")
 
         try:
             content = scrape_product_update_page(url)
         except ScrapeError as exc:
             report(f"    Error: {exc}")
+            _log(f"{competitor} / {label}: SCRAPE FAILED — {exc}")
             continue
 
         new_text = product_update_content_to_text(content)
         new_hash = _hash_text(new_text)
+        _log(
+            f"{competitor} / {label}: fetched OK — title={content.get('title', '')!r} "
+            f"headings={len(content.get('headings', []))} "
+            f"article_titles={len(content.get('article_titles', []))} "
+            f"body_paragraphs={len(content.get('body_paragraphs', []))} "
+            f"text_len={len(new_text)} hash={new_hash[:12]}"
+        )
+
         snapshot = database.get_snapshot(competitor, snapshot_key)
 
         if snapshot is None:
             database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
             report("    No previous snapshot - baseline stored.")
+            _log(f"{competitor} / {label}: no previous snapshot — baseline stored, nothing to diff yet.")
             continue
 
         if snapshot["content_hash"] == new_hash:
             report("    No changes detected.")
+            _log(f"{competitor} / {label}: hash unchanged since last scan — no diff.")
             continue
 
         old_text = snapshot["content_text"]
         diff_text = _build_diff(old_text, new_text)
+        _log(f"{competitor} / {label}: content changed — calling analyze_website_change()")
 
         try:
             analysis = analyze_website_change(
@@ -160,11 +180,18 @@ def _scan_product_updates(competitor: str, report) -> list[dict]:
             )
         except Exception as exc:
             report(f"    Change detected, but analysis failed: {exc}")
+            _log(f"{competitor} / {label}: analyze_website_change FAILED — {exc}")
             database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
             continue
 
+        _log(
+            f"{competitor} / {label}: analyze_website_change OK — "
+            f"impact={analysis['customer_impact_score']} type={analysis['change_type']}"
+        )
+
         if analysis["customer_impact_score"] < 2:
             report(f"    Low-impact change ({analysis['customer_impact_score']}/10) skipped — below minimum threshold.")
+            _log(f"{competitor} / {label}: impact {analysis['customer_impact_score']} < 2 — skipped, no rows inserted.")
             database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
             continue
 
@@ -180,8 +207,10 @@ def _scan_product_updates(competitor: str, report) -> list[dict]:
             diff=diff_text,
         )
         database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+        _log(f"{competitor} / {label}: inserted website_changes row id={change_id} (page_type={PRODUCT_UPDATE_PAGE_TYPE})")
 
         try:
+            _log(f"{competitor} / {label}: calling analyze_product_intelligence()")
             mapping = analyze_product_intelligence(
                 competitor=competitor,
                 page_label=label,
@@ -189,18 +218,24 @@ def _scan_product_updates(competitor: str, report) -> list[dict]:
                 change_type=analysis["change_type"],
                 description=analysis["description"],
             )
+            _log(
+                f"{competitor} / {label}: analyze_product_intelligence OK — "
+                f"product={mapping['moneris_product']!r} threat={mapping['threat_level']}"
+            )
             database.insert_product_intelligence(
-                website_change_id=change_id,
                 competitor=competitor,
+                page_type=label,
                 url=url,
+                raw_change=analysis["description"],
                 competitor_move=mapping["competitor_move"],
                 moneris_product=mapping["moneris_product"],
-                is_gap=mapping["is_gap"],
                 threat_level=mapping["threat_level"],
                 recommended_action=mapping["recommended_action"],
             )
+            _log(f"{competitor} / {label}: inserted product_intelligence row (linked to website_changes id={change_id})")
         except Exception as exc:
             report(f"    Product intelligence mapping failed: {exc}")
+            _log(f"{competitor} / {label}: PRODUCT INTELLIGENCE FAILED — {type(exc).__name__}: {exc}")
 
         detected_changes.append(analysis)
         report(

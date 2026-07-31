@@ -170,25 +170,29 @@ def get_website_changes(limit: int = 100, competitor: str = None, change_type: s
 # Product intelligence (Feature 5 / Product Intelligence tab)
 # ---------------------------------------------------------------------------
 
-def insert_product_intelligence(website_change_id: int, competitor: str, url: str,
-                                  competitor_move: str, moneris_product: str, is_gap: bool,
+def insert_product_intelligence(competitor: str, page_type: str, url: str, raw_change: str,
+                                  competitor_move: str, moneris_product: str,
                                   threat_level: str, recommended_action: str) -> None:
+    now = _now()
+    _log(f"insert_product_intelligence({competitor!r}, {page_type!r}) product={moneris_product!r}")
     try:
-        _client().table("product_intelligence").insert(
+        resp = _client().table("product_intelligence").insert(
             {
-                "analyzed_at": _now(),
-                "website_change_id": website_change_id,
+                "detected_at": now,
+                "analyzed_at": now,
                 "competitor": competitor,
+                "page_type": page_type,
                 "url": url,
+                "raw_change": raw_change,
                 "competitor_move": competitor_move,
                 "moneris_product": moneris_product,
-                "is_gap": is_gap,
                 "threat_level": threat_level,
                 "recommended_action": recommended_action,
             }
         ).execute()
+        _log(f"  -> insert_product_intelligence done, rows_returned={len(resp.data or [])}")
     except Exception as exc:
-        _log(f"ERROR in insert_product_intelligence({competitor!r}): {exc}")
+        _log(f"  ERROR in insert_product_intelligence({competitor!r}): {exc}")
         raise
 
 

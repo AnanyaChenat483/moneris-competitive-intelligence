@@ -16,6 +16,7 @@ import seed_data
 from config import (
     COMPARISON_DIMENSIONS,
     COMPETITORS,
+    MONERIS_GAP_LABEL,
     MONERIS_PRODUCT_AREAS,
     PLAY_STORE_APP_IDS,
     SEGMENTS_AFFECTED,
@@ -1524,7 +1525,7 @@ with tab6:
                 rows_html = []
                 for r in rows:
                     date_only = (r.get("analyzed_at") or "").split("T")[0]
-                    product_cls = "p-red" if r.get("is_gap") else "p-grey"
+                    product_cls = "p-red" if r["moneris_product"] == MONERIS_GAP_LABEL else "p-grey"
                     rows_html.append(
                         f'<tr>'
                         f'<td style="color:#64748B;font-size:.8rem">{_e(date_only)}</td>'
@@ -1548,7 +1549,7 @@ with tab6:
             st.write("")
             st.markdown("---")
 
-            gap_rows = [r for r in pi_all if r.get("is_gap")]
+            gap_rows = [r for r in pi_all if r["moneris_product"] == MONERIS_GAP_LABEL]
             if pi_competitor != "All":
                 gap_rows = [r for r in gap_rows if r["competitor"] == pi_competitor]
 

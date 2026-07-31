@@ -123,6 +123,8 @@ PRODUCT_UPDATE_PAGES = {
 # 5: Product Intelligence). "No Moneris equivalent (gap)" is used both for
 # categories Moneris has no product for (BNPL, stablecoins/crypto, embedded
 # finance) and for anything else that doesn't fit the other areas.
+MONERIS_GAP_LABEL = "No Moneris equivalent (gap)"
+
 MONERIS_PRODUCT_AREAS = [
     "Moneris Go Terminal / Go Retail POS / Go Restaurant POS",
     "Moneris Online / Total Commerce",
@@ -130,7 +132,7 @@ MONERIS_PRODUCT_AREAS = [
     "PAYD / Tap to Pay",
     "Moneris Data & Insights",
     "Moneris Payment Facilitation",
-    "No Moneris equivalent (gap)",
+    MONERIS_GAP_LABEL,
 ]
 
 # ---------------------------------------------------------------------------
