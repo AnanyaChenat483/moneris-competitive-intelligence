@@ -113,6 +113,97 @@ def scrape_page(url: str) -> dict:
     }
 
 
+_ARTICLE_TITLE_TAGS = ["h1", "h2", "h3", "h4"]
+_ARTICLE_TITLE_CLASS_HINTS = re.compile(r"title|headline", re.I)
+_BODY_TEXT_MIN_LEN = 20
+_BODY_TEXT_MAX_PARAGRAPHS = 60
+
+
+def extract_article_titles(soup: BeautifulSoup) -> list[str]:
+    """Extract likely article/post titles from a changelog, newsroom, or blog listing page.
+
+    Covers two common patterns: a heading nested inside an <article> element,
+    and elements whose class name signals a title/headline (e.g. "wd_title",
+    "post-title") — the latter catches JS-templated listing pages where the
+    title isn't wrapped in a heading tag at all.
+    """
+    titles = []
+    seen = set()
+
+    for article in soup.find_all("article"):
+        for tag in _ARTICLE_TITLE_TAGS:
+            el = article.find(tag)
+            if el:
+                text = _clean_text(el.get_text())
+                if text and text not in seen:
+                    seen.add(text)
+                    titles.append(text)
+                break
+
+    for el in soup.find_all(class_=_ARTICLE_TITLE_CLASS_HINTS):
+        text = _clean_text(el.get_text())
+        if text and FEATURE_TEXT_MIN_LEN <= len(text) <= PRICING_TEXT_MAX_LEN and text not in seen:
+            seen.add(text)
+            titles.append(text)
+
+    return titles
+
+
+def extract_body_paragraphs(soup: BeautifulSoup) -> list[str]:
+    """Extract cleaned paragraph text as supporting context for changelog/newsroom pages."""
+    paragraphs = []
+    for el in soup.find_all("p")[: _BODY_TEXT_MAX_PARAGRAPHS * 3]:
+        text = _clean_text(el.get_text())
+        if len(text) >= _BODY_TEXT_MIN_LEN:
+            paragraphs.append(text)
+        if len(paragraphs) >= _BODY_TEXT_MAX_PARAGRAPHS:
+            break
+    return paragraphs
+
+
+def scrape_product_update_page(url: str) -> dict:
+    """Fetch a changelog/newsroom/roadmap page and extract headings, article titles, and body text.
+
+    Unlike scrape_page (tuned for pricing/product marketing pages), this
+    targets listing-style pages where the signal is in post titles and
+    announcement text rather than pricing keywords or feature bullet lists.
+    """
+    html = fetch_page(url)
+    soup = BeautifulSoup(html, "html.parser")
+
+    title = extract_title(soup)
+
+    for tag in soup(["script", "style", "noscript"]):
+        tag.decompose()
+
+    return {
+        "title": title,
+        "headings": extract_headings(soup),
+        "article_titles": extract_article_titles(soup),
+        "body_paragraphs": extract_body_paragraphs(soup),
+    }
+
+
+def product_update_content_to_text(content: dict) -> str:
+    """Flatten extracted changelog/newsroom content into a single comparable text blob."""
+    parts = []
+
+    parts.append("## TITLE")
+    if content.get("title"):
+        parts.append(content["title"])
+
+    parts.append("## HEADINGS")
+    parts.extend(content.get("headings", []))
+
+    parts.append("## ARTICLE TITLES")
+    parts.extend(content.get("article_titles", []))
+
+    parts.append("## BODY TEXT")
+    parts.extend(content.get("body_paragraphs", []))
+
+    return "\n".join(parts)
+
+
 def content_to_text(content: dict) -> str:
     """Flatten extracted content into a single comparable text blob."""
     parts = []

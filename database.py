@@ -122,7 +122,8 @@ def upsert_snapshot(competitor: str, page_type: str, url: str, page_title: str,
 def insert_website_change(competitor: str, page_type: str, url: str, change_type: str,
                             description: str, customer_impact_score: int,
                             revenue_sensitivity: str, segment_affected: str, diff: str,
-                            detected_at: str = None) -> None:
+                            detected_at: str = None) -> int:
+    """Insert a detected website change and return its new row id."""
     _log(
         f"insert_website_change({competitor!r}, {page_type!r}) "
         f"type={change_type!r} impact={customer_impact_score}"
@@ -143,6 +144,7 @@ def insert_website_change(competitor: str, page_type: str, url: str, change_type
             }
         ).execute()
         _log(f"  -> insert_website_change done, rows_returned={len(resp.data or [])}")
+        return resp.data[0]["id"]
     except Exception as exc:
         _log(f"  ERROR in insert_website_change: {exc}")
         raise
@@ -161,6 +163,46 @@ def get_website_changes(limit: int = 100, competitor: str = None, change_type: s
         return rows
     except Exception as exc:
         _log(f"  ERROR in get_website_changes: {exc}")
+        raise
+
+
+# ---------------------------------------------------------------------------
+# Product intelligence (Feature 5 / Product Intelligence tab)
+# ---------------------------------------------------------------------------
+
+def insert_product_intelligence(website_change_id: int, competitor: str, url: str,
+                                  competitor_move: str, moneris_product: str, is_gap: bool,
+                                  threat_level: str, recommended_action: str) -> None:
+    try:
+        _client().table("product_intelligence").insert(
+            {
+                "analyzed_at": _now(),
+                "website_change_id": website_change_id,
+                "competitor": competitor,
+                "url": url,
+                "competitor_move": competitor_move,
+                "moneris_product": moneris_product,
+                "is_gap": is_gap,
+                "threat_level": threat_level,
+                "recommended_action": recommended_action,
+            }
+        ).execute()
+    except Exception as exc:
+        _log(f"ERROR in insert_product_intelligence({competitor!r}): {exc}")
+        raise
+
+
+def get_product_intelligence(limit: int = 500, competitor: str = None, moneris_product: str = None):
+    try:
+        q = _client().table("product_intelligence").select("*")
+        if competitor and competitor != "All":
+            q = q.eq("competitor", competitor)
+        if moneris_product and moneris_product != "All":
+            q = q.eq("moneris_product", moneris_product)
+        rows = q.order("analyzed_at", desc=True).limit(limit).execute().data or []
+        return rows
+    except Exception as exc:
+        _log(f"ERROR in get_product_intelligence: {exc}")
         raise
 
 

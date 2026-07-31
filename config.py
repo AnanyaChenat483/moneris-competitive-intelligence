@@ -51,14 +51,87 @@ COMPETITORS = {
         "Home": "https://www.heartland.us/",
         "POS": "https://www.heartland.us/products/point-of-sale",
     },
-    # clover.com pages are JS-rendered shells (~261 words). blog.clover.com
-    # is plain HTML (18+ headings, 2800+ words) and changes on every new post,
-    # making it the most meaningful monitoring target for Clover.
     "Clover": {
-        "Blog": "https://blog.clover.com/",
         "Pricing": "https://www.clover.com/ca/en/pricing",
     },
 }
+
+# ---------------------------------------------------------------------------
+# Layer 1b: Product changelog / newsroom / release-notes pages
+# ---------------------------------------------------------------------------
+# The richest source of product intelligence: changelogs, "shipped" pages,
+# roadmaps, and newsrooms announce concrete product moves well before they
+# show up on marketing pricing/product pages. Tracked separately from
+# COMPETITORS above under page_type PRODUCT_UPDATE_PAGE_TYPE so the dashboard
+# can filter on them independently. Every URL below was verified (200 status,
+# real server-rendered content) before being added; URLs that returned 403
+# (Cloudflare-blocked) or were empty JS shells were left out — see the
+# comments per competitor.
+PRODUCT_UPDATE_PAGE_TYPE = "product_updates"
+
+PRODUCT_UPDATE_PAGES = {
+    "Stripe": {
+        "Changelog": "https://stripe.com/blog/changelog",
+        "Shipped": "https://stripe.com/shipped",
+        "Roadmap": "https://stripe.com/roadmap",
+        "Newsroom": "https://stripe.com/newsroom/news",
+    },
+    "Square": {
+        "Newsroom": "https://squareup.com/ca/en/press",
+        "Developer changelog": "https://developer.squareup.com/blog",
+        "What's new": "https://squareup.com/ca/en/whats-new",
+    },
+    # newsroom.paypal.com does not resolve (no such host) and the requested
+    # business-blog URL (paypal.com/ca/webapps/mpp/blog) 404s. PayPal's real
+    # newsroom lives on a different subdomain (found via search); a Canada
+    # edition replaces the dead "business blog" link.
+    "PayPal": {
+        "Newsroom": "https://newsroom.paypal-corp.com/news",
+        "Newsroom (Canada)": "https://newsroom.ca.paypal-corp.com/",
+    },
+    "Shopify Payments": {
+        "Changelog": "https://changelog.shopify.com",
+        "Blog": "https://www.shopify.com/ca/blog",
+        "Engineering blog": "https://shopify.engineering",
+    },
+    # helcim.com (main domain, including /blog and /whats-new) returns a 403
+    # Cloudflare block for every path and user agent — same issue already
+    # documented for the main Helcim entry above. No product-update pages
+    # available for Helcim.
+    "Nuvei": {
+        "Newsroom": "https://www.nuvei.com/post-category/newsroom",
+        "Blog": "https://www.nuvei.com/post-category/blog",
+    },
+    # blog.clover.com moved here from COMPETITORS above — it's changelog-style
+    # content and belongs in the product intelligence category. Clover's
+    # App Market page (clover.com/app-market) is a JS-rendered shell with ~8
+    # words of static content, same issue as other clover.com marketing
+    # pages — excluded.
+    "Clover": {
+        "Blog": "https://blog.clover.com/",
+    },
+    # heartland.us/news and every plausible newsroom path (/newsroom, /press,
+    # /press-releases, /about/newsroom, etc.) 404. Global Payments' press
+    # releases live on the Cloudflare-blocked corporate site. Only the blog
+    # is available.
+    "Global Payments": {
+        "Blog": "https://www.heartland.us/blog",
+    },
+}
+
+# The Moneris product areas a product-update change can be mapped to (Feature
+# 5: Product Intelligence). "No Moneris equivalent (gap)" is used both for
+# categories Moneris has no product for (BNPL, stablecoins/crypto, embedded
+# finance) and for anything else that doesn't fit the other areas.
+MONERIS_PRODUCT_AREAS = [
+    "Moneris Go Terminal / Go Retail POS / Go Restaurant POS",
+    "Moneris Online / Total Commerce",
+    "Moneris MCP Server / Developer tools",
+    "PAYD / Tap to Pay",
+    "Moneris Data & Insights",
+    "Moneris Payment Facilitation",
+    "No Moneris equivalent (gap)",
+]
 
 # ---------------------------------------------------------------------------
 # Scraping configuration

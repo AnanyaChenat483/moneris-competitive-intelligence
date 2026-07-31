@@ -40,6 +40,9 @@ After each scan, Claude synthesizes all signals into a cross-competitor comparis
 ### Trends
 Tracks threat scores over time per competitor with a fully dark-themed Altair line chart. Each data point includes a Claude-generated one-sentence explanation of why the score moved. Historical seed data from real market events (2022–2025) provides baseline context from day one. The breakdown table shows every score component with the full attribution text.
 
+### Product Intelligence
+Scrapes each competitor's changelog, "shipped"/roadmap, newsroom, and blog pages — the richest source of concrete product moves, tracked separately from the marketing pricing/product pages under `page_type = product_updates`. Every detected change is mapped by Claude to the Moneris product area it threatens (Go Terminal/POS, Online/Total Commerce, MCP Server & developer tools, PAYD/Tap to Pay, Data & Insights, Payment Facilitation) or flagged as a product gap (e.g. BNPL, embedded finance, stablecoins) with a threat level and a one-sentence recommended action. Filterable by competitor and Moneris product area, with a dedicated Product Gaps summary.
+
 ---
 
 ## Tech Stack
@@ -122,7 +125,7 @@ The app seeds historical event data automatically on first run. Click **Run Full
 
 ```
 moneris-competitive-intelligence/
-├── app.py                        # Streamlit dashboard (all five tabs)
+├── app.py                        # Streamlit dashboard (all six tabs)
 ├── scanner.py                    # Scan orchestration — website -> reviews -> news -> scoring
 ├── analyzer.py                   # Claude API calls — all AI analysis and synthesis
 ├── database.py                   # Supabase persistence layer

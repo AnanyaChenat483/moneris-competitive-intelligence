@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from config import (
     CLAUDE_MODEL,
     COMPARISON_DIMENSIONS,
+    MONERIS_PRODUCT_AREAS,
     SEGMENTS_AFFECTED,
     TARGET_COMPANY,
     TARGET_COMPANY_CONTEXT,
@@ -150,6 +151,93 @@ For segment_affected, choose exactly one of {TARGET_COMPANY}'s four internal cus
     result = _create(_WEBSITE_CHANGE_SCHEMA, prompt)
     result["customer_impact_score"] = int(_clamp(result["customer_impact_score"], 1, 10))
     return result
+
+
+# ---------------------------------------------------------------------------
+# Feature 5: Product Intelligence — map a product_updates change to the
+# Moneris product area it threatens, or the gap it reveals.
+# ---------------------------------------------------------------------------
+
+_PRODUCT_INTELLIGENCE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "competitor_move": {
+            "type": "string",
+            "description": "One concise sentence describing what the competitor launched or changed.",
+        },
+        "moneris_product": {
+            "type": "string",
+            "enum": MONERIS_PRODUCT_AREAS,
+            "description": (
+                "The single Moneris product area most at risk from this change, or "
+                "'No Moneris equivalent (gap)' if Moneris has no comparable offering at all."
+            ),
+        },
+        "is_gap": {
+            "type": "boolean",
+            "description": (
+                "True if Moneris has no comparable capability at all for this specific "
+                "change (a genuine product gap). False if Moneris's product in that area "
+                "already offers a roughly comparable capability, even if this specific "
+                "change still puts competitive pressure on it."
+            ),
+        },
+        "threat_level": {
+            "type": "string",
+            "enum": ["High", "Medium", "Low"],
+            "description": "How much competitive pressure this specific change puts on Moneris.",
+        },
+        "recommended_action": {
+            "type": "string",
+            "description": "One sentence of concrete, actionable guidance for the relevant Moneris product team.",
+        },
+    },
+    "required": ["competitor_move", "moneris_product", "is_gap", "threat_level", "recommended_action"],
+    "additionalProperties": False,
+}
+
+
+def analyze_product_intelligence(competitor: str, page_label: str, url: str,
+                                   change_type: str, description: str) -> dict:
+    """Map a detected product-update change to the Moneris product area it threatens or a gap it reveals."""
+    prompt = f"""You are a product strategy analyst for {TARGET_COMPANY}.
+
+About {TARGET_COMPANY}:
+{TARGET_COMPANY_CONTEXT}
+
+{TARGET_COMPANY}'s relevant product lines:
+- Moneris Go Terminal / Go Retail POS / Go Restaurant POS — in-person point-of-sale hardware and software
+- Moneris Online / Total Commerce — online/ecommerce payment acceptance
+- Moneris MCP Server / Developer tools — API and developer integration tooling, including agentic/AI commerce
+- PAYD / Tap to Pay — mobile and tap-to-pay payment acceptance
+- Moneris Data & Insights — merchant analytics and reporting
+- Moneris Payment Facilitation — embedded payments / ISV and platform payment facilitation
+- {TARGET_COMPANY} currently has no buy-now-pay-later (BNPL), embedded finance, or
+  stablecoin/crypto settlement product.
+
+A competitor product update was detected:
+
+Competitor: {competitor}
+Source: {page_label} ({url})
+Change type: {change_type}
+What changed: {description}
+
+Map this change to the single most relevant {TARGET_COMPANY} product area using this mapping:
+- POS/terminal changes -> Moneris Go Terminal / Go Retail POS / Go Restaurant POS
+- Online/ecommerce changes -> Moneris Online / Total Commerce
+- Developer/API changes -> Moneris MCP Server / Developer tools
+- BNPL/financing changes -> {TARGET_COMPANY} has no BNPL -> flag as a gap
+- Mobile payments -> PAYD / Tap to Pay
+- Analytics/reporting changes -> Moneris Data & Insights
+- Embedded payments/ISV -> Moneris Payment Facilitation
+- Agentic commerce/AI -> Moneris MCP Server
+- Anything else with no {TARGET_COMPANY} equivalent (e.g. stablecoins, crypto settlement,
+  embedded finance) -> flag as a gap
+
+Assess the competitive threat this poses to {TARGET_COMPANY} and recommend one concrete
+action for the relevant Moneris product team."""
+
+    return _create(_PRODUCT_INTELLIGENCE_SCHEMA, prompt)
 
 
 # ---------------------------------------------------------------------------

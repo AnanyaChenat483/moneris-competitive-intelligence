@@ -36,6 +36,23 @@ CREATE TABLE IF NOT EXISTS website_changes (
 );
 ALTER TABLE website_changes DISABLE ROW LEVEL SECURITY;
 
+-- Product intelligence: Claude's mapping of each page_type='product_updates' website
+-- change to the Moneris product area it threatens (or gap it reveals). One row per
+-- detected product-update change; powers the Product Intelligence tab.
+CREATE TABLE IF NOT EXISTS product_intelligence (
+    id                  BIGSERIAL PRIMARY KEY,
+    analyzed_at         TEXT NOT NULL,
+    website_change_id   BIGINT REFERENCES website_changes(id),
+    competitor          TEXT NOT NULL,
+    url                 TEXT NOT NULL,
+    competitor_move     TEXT NOT NULL,
+    moneris_product     TEXT NOT NULL,
+    is_gap              BOOLEAN NOT NULL DEFAULT FALSE,
+    threat_level        TEXT NOT NULL,
+    recommended_action  TEXT NOT NULL
+);
+ALTER TABLE product_intelligence DISABLE ROW LEVEL SECURITY;
+
 -- Review sentiment: Google Play Store analysis result per competitor per scan
 CREATE TABLE IF NOT EXISTS review_sentiment (
     id                   BIGSERIAL PRIMARY KEY,

@@ -13,7 +13,14 @@ import streamlit as st
 
 import database
 import seed_data
-from config import COMPARISON_DIMENSIONS, COMPETITORS, PLAY_STORE_APP_IDS, SEGMENTS_AFFECTED, TARGET_COMPANY
+from config import (
+    COMPARISON_DIMENSIONS,
+    COMPETITORS,
+    MONERIS_PRODUCT_AREAS,
+    PLAY_STORE_APP_IDS,
+    SEGMENTS_AFFECTED,
+    TARGET_COMPANY,
+)
 from scanner import run_scan
 
 st.set_page_config(
@@ -300,6 +307,11 @@ def rel_color(score) -> str:
 def change_type_pill(ct: str) -> str:
     cls = {"pricing": "p-red", "feature": "p-teal", "policy": "p-amber", "UX": "p-blue"}.get(ct, "p-grey")
     return f'<span class="pill {cls}">{_e(ct)}</span>'
+
+
+def threat_level_pill(level: str) -> str:
+    cls = {"High": "p-red", "Medium": "p-amber", "Low": "p-green"}.get(level, "p-grey")
+    return f'<span class="pill {cls}">{_e(level)}</span>'
 
 
 def _parse_news_date(date_str: str):
@@ -912,12 +924,13 @@ with st.sidebar:
 # Tabs
 # ---------------------------------------------------------------------------
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🌐 Website Changes",
     "⭐ Customer Reviews",
     "📰 Latest News",
     "⚖️ Moneris vs Competitors",
     "📈 Trends",
+    "🧭 Product Intelligence",
 ])
 
 
@@ -1454,3 +1467,101 @@ with tab5:
                     + "</table>",
                     unsafe_allow_html=True,
                 )
+
+
+# ---------------------------------------------------------------------------
+# Tab 6 — Product Intelligence
+# ---------------------------------------------------------------------------
+
+with tab6:
+    st.markdown(
+        "**Product Intelligence** &nbsp;"
+        "<span style='color:#475569;font-size:.85rem'>Changelog, newsroom, and release-note moves mapped to the "
+        f"{_e(TARGET_COMPANY)} product they threaten, or the gap they reveal</span>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+
+    pi_all = None
+    try:
+        pi_all = database.get_product_intelligence(limit=1000)
+    except Exception as exc:
+        if "PGRST205" in str(exc) or "Could not find the table" in str(exc):
+            st.warning(
+                "The `product_intelligence` table doesn't exist yet in Supabase. "
+                "Run the updated schema.sql (look for the `product_intelligence` table) "
+                "in the Supabase SQL Editor, then run a scan to populate this tab."
+            )
+        else:
+            st.error(f"Could not load product intelligence: {exc}")
+
+    if pi_all is not None:
+        if not pi_all:
+            st.info("No product intelligence recorded yet. Run a scan from the sidebar to get started.")
+        else:
+            pi_competitors = sorted({row["competitor"] for row in pi_all})
+
+            fc1, fc2 = st.columns(2)
+            with fc1:
+                pi_competitor = st.selectbox("Competitor", ["All"] + pi_competitors, key="pi_c")
+            with fc2:
+                pi_product = st.selectbox("Moneris product area", ["All"] + MONERIS_PRODUCT_AREAS, key="pi_p")
+
+            rows = pi_all
+            if pi_competitor != "All":
+                rows = [r for r in rows if r["competitor"] == pi_competitor]
+            if pi_product != "All":
+                rows = [r for r in rows if r["moneris_product"] == pi_product]
+
+            if not rows:
+                st.info("No product intelligence matches the selected filters.")
+            else:
+                headers = ["Date", "Competitor", "Competitor Move", "Moneris Product / Gap", "Threat", "Recommended Action", "Link"]
+                col_widths = ["7%", "10%", "26%", "19%", "7%", "27%", "4%"]
+                colgroup = "".join(f'<col style="width:{w}">' for w in col_widths)
+                ths = "".join(f'<th>{_e(h)}</th>' for h in headers)
+
+                rows_html = []
+                for r in rows:
+                    date_only = (r.get("analyzed_at") or "").split("T")[0]
+                    product_cls = "p-red" if r.get("is_gap") else "p-grey"
+                    rows_html.append(
+                        f'<tr>'
+                        f'<td style="color:#64748B;font-size:.8rem">{_e(date_only)}</td>'
+                        f'<td><span class="comp-badge">{_e(r["competitor"])}</span></td>'
+                        f'<td style="color:#E2E8F0">{_e(r["competitor_move"])}</td>'
+                        f'<td><span class="pill {product_cls}">{_e(r["moneris_product"])}</span></td>'
+                        f'<td style="text-align:center">{threat_level_pill(r["threat_level"])}</td>'
+                        f'<td style="color:#94A3B8;font-size:.85rem">{_e(r["recommended_action"])}</td>'
+                        f'<td><a href="{_e(r["url"])}" target="_blank">&#8599;</a></td>'
+                        f'</tr>'
+                    )
+
+                st.markdown(
+                    f'<table class="wct"><colgroup>{colgroup}</colgroup>'
+                    f'<tr>{ths}</tr>'
+                    + "".join(rows_html)
+                    + "</table>",
+                    unsafe_allow_html=True,
+                )
+
+            st.write("")
+            st.markdown("---")
+
+            gap_rows = [r for r in pi_all if r.get("is_gap")]
+            if pi_competitor != "All":
+                gap_rows = [r for r in gap_rows if r["competitor"] == pi_competitor]
+
+            gap_items = "".join(
+                f'<div class="ac-item"><strong>{_e(g["competitor"])}</strong> &mdash; {_e(g["competitor_move"])}</div>'
+                for g in gap_rows
+            ) or '<div class="ac-item">No gaps identified yet.</div>'
+
+            st.markdown(
+                f'<div class="ac ac-threat">'
+                f'<div class="ac-title">&#9650; Product Gaps &mdash; areas where competitors have features '
+                f'{_e(TARGET_COMPANY)} doesn&rsquo;t</div>'
+                f'{gap_items}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )

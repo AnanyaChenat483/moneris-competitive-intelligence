@@ -6,15 +6,22 @@ import hashlib
 import database
 from analyzer import (
     analyze_news_batch,
+    analyze_product_intelligence,
     analyze_review_sentiment,
     analyze_website_change,
     explain_threat_score_change,
     generate_comparison_card,
 )
-from config import COMPETITORS, SMB_RELEVANCE, THREAT_WEIGHTS
+from config import COMPETITORS, PRODUCT_UPDATE_PAGE_TYPE, PRODUCT_UPDATE_PAGES, SMB_RELEVANCE, THREAT_WEIGHTS
 from news_client import NewsError, fetch_news_for_competitor
 from play_reviews import get_reviews_for_competitor
-from scraper import ScrapeError, content_to_text, scrape_page
+from scraper import (
+    ScrapeError,
+    content_to_text,
+    product_update_content_to_text,
+    scrape_page,
+    scrape_product_update_page,
+)
 
 FEATURE_VELOCITY_BASELINE = 2.0  # used when no website changes detected this scan
 NEWS_MOMENTUM_BASELINE = 3.0  # used when no news articles are available this scan
@@ -95,6 +102,105 @@ def _scan_website(competitor: str, report) -> list[dict]:
             diff=diff_text,
         )
         database.upsert_snapshot(competitor, page_type, url, content.get("title", ""), new_hash, new_text)
+
+        detected_changes.append(analysis)
+        report(
+            f"    Change detected ({analysis['change_type']}, impact "
+            f"{analysis['customer_impact_score']}/10): {analysis['description']}"
+        )
+
+    return detected_changes
+
+
+def _scan_product_updates(competitor: str, report) -> list[dict]:
+    """Scrape changelog/newsroom/roadmap pages for a competitor and return detected changes.
+
+    Mirrors _scan_website, but targets richer product-signal pages (Layer 1b)
+    and stores every change under page_type=PRODUCT_UPDATE_PAGE_TYPE so the
+    Product Intelligence tab can query them independently. Snapshot keys are
+    prefixed to avoid colliding with the main COMPETITORS page labels.
+    """
+    detected_changes = []
+    pages = PRODUCT_UPDATE_PAGES.get(competitor, {})
+
+    for label, url in pages.items():
+        snapshot_key = f"product_updates::{label}"
+        report(f"  [Product Updates] {label}: {url}")
+
+        try:
+            content = scrape_product_update_page(url)
+        except ScrapeError as exc:
+            report(f"    Error: {exc}")
+            continue
+
+        new_text = product_update_content_to_text(content)
+        new_hash = _hash_text(new_text)
+        snapshot = database.get_snapshot(competitor, snapshot_key)
+
+        if snapshot is None:
+            database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+            report("    No previous snapshot - baseline stored.")
+            continue
+
+        if snapshot["content_hash"] == new_hash:
+            report("    No changes detected.")
+            continue
+
+        old_text = snapshot["content_text"]
+        diff_text = _build_diff(old_text, new_text)
+
+        try:
+            analysis = analyze_website_change(
+                competitor=competitor,
+                page_type=label,
+                url=url,
+                old_text=old_text,
+                new_text=new_text,
+                diff_text=diff_text,
+            )
+        except Exception as exc:
+            report(f"    Change detected, but analysis failed: {exc}")
+            database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+            continue
+
+        if analysis["customer_impact_score"] < 2:
+            report(f"    Low-impact change ({analysis['customer_impact_score']}/10) skipped — below minimum threshold.")
+            database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+            continue
+
+        change_id = database.insert_website_change(
+            competitor=competitor,
+            page_type=PRODUCT_UPDATE_PAGE_TYPE,
+            url=url,
+            change_type=analysis["change_type"],
+            description=analysis["description"],
+            customer_impact_score=analysis["customer_impact_score"],
+            revenue_sensitivity=analysis["revenue_sensitivity"],
+            segment_affected=analysis["segment_affected"],
+            diff=diff_text,
+        )
+        database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+
+        try:
+            mapping = analyze_product_intelligence(
+                competitor=competitor,
+                page_label=label,
+                url=url,
+                change_type=analysis["change_type"],
+                description=analysis["description"],
+            )
+            database.insert_product_intelligence(
+                website_change_id=change_id,
+                competitor=competitor,
+                url=url,
+                competitor_move=mapping["competitor_move"],
+                moneris_product=mapping["moneris_product"],
+                is_gap=mapping["is_gap"],
+                threat_level=mapping["threat_level"],
+                recommended_action=mapping["recommended_action"],
+            )
+        except Exception as exc:
+            report(f"    Product intelligence mapping failed: {exc}")
 
         detected_changes.append(analysis)
         report(
@@ -291,6 +397,13 @@ def run_scan(progress_callback=None) -> dict:
         except Exception as exc:
             errors.append(f"{competitor}: website scan failed ({exc})")
             website_changes = []
+
+        try:
+            product_changes = _scan_product_updates(competitor, report)
+        except Exception as exc:
+            errors.append(f"{competitor}: product updates scan failed ({exc})")
+            product_changes = []
+        website_changes = website_changes + product_changes
 
         try:
             sentiment = _scan_reviews(competitor, report)
