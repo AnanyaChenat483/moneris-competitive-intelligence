@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from config import (
     CLAUDE_MODEL,
     COMPARISON_DIMENSIONS,
+    SEGMENTS_AFFECTED,
     TARGET_COMPANY,
     TARGET_COMPANY_CONTEXT,
 )
@@ -82,8 +83,13 @@ _WEBSITE_CHANGE_SCHEMA = {
         },
         "segment_affected": {
             "type": "string",
-            "enum": ["SMB", "enterprise", "developers"],
-            "description": "The customer segment most affected by this change.",
+            "enum": SEGMENTS_AFFECTED,
+            "description": (
+                "The Moneris customer segment most affected by this change. Choose exactly "
+                "one of: SMB (small and medium businesses), LAKA (Large and Key Accounts — "
+                "enterprise/high volume merchants), Partners (distribution partners, channel "
+                "partners, ISVs), or Developers (API/integration focused)."
+            ),
         },
     },
     "required": ["change_type", "description", "customer_impact_score", "revenue_sensitivity", "segment_affected"],
@@ -120,7 +126,13 @@ DIFF (lines starting with "-" were removed, lines starting with "+" were added):
 {diff_text}
 ---
 
-Classify this change and assess its significance for {TARGET_COMPANY}."""
+Classify this change and assess its significance for {TARGET_COMPANY}.
+
+For segment_affected, choose exactly one of {TARGET_COMPANY}'s four internal customer segments:
+- SMB: small and medium businesses
+- LAKA: Large and Key Accounts — enterprise/high volume merchants
+- Partners: distribution partners, channel partners, ISVs
+- Developers: API/integration focused"""
 
     result = _create(_WEBSITE_CHANGE_SCHEMA, prompt)
     result["customer_impact_score"] = int(_clamp(result["customer_impact_score"], 1, 10))

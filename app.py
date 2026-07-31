@@ -11,7 +11,7 @@ import streamlit as st
 
 import database
 import seed_data
-from config import COMPARISON_DIMENSIONS, COMPETITORS, PLAY_STORE_APP_IDS, TARGET_COMPANY
+from config import COMPARISON_DIMENSIONS, COMPETITORS, PLAY_STORE_APP_IDS, SEGMENTS_AFFECTED, TARGET_COMPANY
 from scanner import run_scan
 
 st.set_page_config(
@@ -883,11 +883,13 @@ with tab1:
     )
     st.write("")
 
-    fc1, fc2 = st.columns(2)
+    fc1, fc2, fc3 = st.columns(3)
     with fc1:
         wc_competitor = st.selectbox("Competitor", ["All"] + COMPETITOR_NAMES, key="wc_c")
     with fc2:
         wc_change_type = st.selectbox("Change type", ["All", "pricing", "feature", "policy", "UX"], key="wc_ct")
+    with fc3:
+        wc_segment = st.selectbox("Segment", ["All"] + SEGMENTS_AFFECTED, key="wc_seg")
     st.caption(f"Showing changes from the last 90 days · older data retained in database for trend analysis")
 
     changes = database.get_website_changes(limit=500, competitor=wc_competitor, change_type=wc_change_type)
@@ -898,6 +900,8 @@ with tab1:
     changes = [c for c in changes if _parse_detected_at(c.get("detected_at", "")) >= _cutoff]
     # Remove near-duplicates: same competitor + day with similar descriptions
     changes = _deduplicate_changes(changes)
+    if wc_segment != "All":
+        changes = [c for c in changes if c.get("segment_affected") == wc_segment]
 
     if not changes:
         st.info("No website changes recorded yet. Run a scan from the sidebar to get started.")

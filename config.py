@@ -91,7 +91,7 @@ PRICING_TEXT_MAX_LEN = 200
 # Allowed values for website-change classification
 CHANGE_TYPES = ["pricing", "feature", "policy", "UX"]
 REVENUE_SENSITIVITY_LEVELS = ["high", "medium", "low"]
-SEGMENTS_AFFECTED = ["SMB", "enterprise", "developers"]
+SEGMENTS_AFFECTED = ["SMB", "LAKA", "Partners", "Developers"]
 
 # ---------------------------------------------------------------------------
 # Layer 2: Customer reviews (Google Play Store)

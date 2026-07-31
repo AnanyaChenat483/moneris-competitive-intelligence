@@ -192,7 +192,7 @@ WEBSITE_CHANGES_SEED = [
         "description": "Stripe redesigned its payments product page with a new 'Time to first payment' claim of under 10 minutes using the Stripe Checkout hosted UI, and added a side-by-side integration complexity comparison that positions Stripe as significantly easier to integrate than traditional acquirers — a direct competitive message aimed at developer-led merchants.",
         "customer_impact_score": 5,
         "revenue_sensitivity": "medium",
-        "segment_affected": "developers",
+        "segment_affected": "Developers",
         "diff": (
             "--- previous\n+++ current\n"
             "@@ -3,5 +3,11 @@\n"
@@ -331,7 +331,7 @@ WEBSITE_CHANGES_SEED = [
         "description": "Nuvei launched native cryptocurrency payment acceptance for enterprise merchants in Canada, supporting Bitcoin, Ethereum, and USDC with real-time CAD settlement. While primarily targeting enterprise, this positions Nuvei ahead of Moneris in digital asset readiness and may attract crypto-forward merchants considering payment processor switches.",
         "customer_impact_score": 5,
         "revenue_sensitivity": "medium",
-        "segment_affected": "enterprise",
+        "segment_affected": "LAKA",
         "diff": (
             "--- previous\n+++ current\n"
             "@@ -30,3 +30,10 @@\n"
@@ -354,7 +354,7 @@ WEBSITE_CHANGES_SEED = [
         "description": "Nuvei added a dedicated embedded payments SDK section to its platform page, targeting software platforms and marketplaces with pre-built payment UI components and a same-day go-live claim. This sharpens Nuvei's pitch to ISVs and platforms — a segment where Moneris has historically had weaker developer tooling.",
         "customer_impact_score": 6,
         "revenue_sensitivity": "medium",
-        "segment_affected": "developers",
+        "segment_affected": "Developers",
         "diff": (
             "--- previous\n+++ current\n"
             "@@ -44,3 +44,11 @@\n"
@@ -378,7 +378,7 @@ WEBSITE_CHANGES_SEED = [
         "description": "Nuvei expanded its cross-border payment capabilities with 17 new payment corridors including Interac e-Transfer for B2B disbursements and real-time settlement in 14 currencies. Following the $2.75B Payoneer acquisition, this consolidates Nuvei's position as the leading cross-border enterprise processor in Canada, an area where Moneris has limited global reach.",
         "customer_impact_score": 8,
         "revenue_sensitivity": "high",
-        "segment_affected": "enterprise",
+        "segment_affected": "LAKA",
         "diff": (
             "--- previous\n+++ current\n"
             "@@ -10,5 +10,12 @@\n"
