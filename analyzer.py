@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 
 import anthropic
 from dotenv import load_dotenv
@@ -183,7 +184,12 @@ _PRODUCT_INTELLIGENCE_SCHEMA = {
         },
         "recommended_action": {
             "type": "string",
-            "description": "One sentence of concrete, actionable guidance for the relevant Moneris product team.",
+            "description": (
+                "One full sentence of concrete, actionable guidance for the relevant Moneris "
+                "product team. Must never be empty, whitespace, or punctuation-only — always "
+                "write a real recommendation, even for a Low-threat or routine change (e.g. "
+                "'Monitor for further updates' is acceptable, an empty string is not)."
+            ),
         },
     },
     "required": ["competitor_move", "moneris_product", "threat_level", "recommended_action"],
@@ -228,10 +234,36 @@ Map this change to the single most relevant {TARGET_COMPANY} product area using 
 - Anything else with no {TARGET_COMPANY} equivalent (e.g. stablecoins, crypto settlement,
   embedded finance) -> flag as a gap
 
-Assess the competitive threat this poses to {TARGET_COMPANY} and recommend one concrete
-action for the relevant Moneris product team."""
+Assess the competitive threat this poses to {TARGET_COMPANY} and recommend one concrete,
+complete-sentence action for the relevant Moneris product team. recommended_action must
+never be blank or punctuation-only — if the change is minor, say so and recommend
+monitoring it, rather than leaving the field empty."""
 
-    return _create(_PRODUCT_INTELLIGENCE_SCHEMA, prompt)
+    result = _create(_PRODUCT_INTELLIGENCE_SCHEMA, prompt)
+    if _is_blank(result.get("recommended_action")):
+        result["recommended_action"] = _fallback_recommended_action(
+            result["moneris_product"], result["threat_level"]
+        )
+    return result
+
+
+def _is_blank(text: str) -> bool:
+    """True if text has no actual letters/digits — catches the '' / ':' empty-response failure mode."""
+    return not re.search(r"[A-Za-z0-9]", text or "")
+
+
+def _fallback_recommended_action(moneris_product: str, threat_level: str) -> str:
+    """Deterministic recommendation used when Claude returns a blank recommended_action."""
+    level = (threat_level or "Medium").lower()
+    if moneris_product == MONERIS_GAP_LABEL:
+        return (
+            f"Evaluate whether Moneris should build or partner to close this gap, given "
+            f"the {level} threat level."
+        )
+    return (
+        f"Have the {moneris_product} team review this change and assess a response, "
+        f"given the {level} threat level."
+    )
 
 
 # ---------------------------------------------------------------------------
