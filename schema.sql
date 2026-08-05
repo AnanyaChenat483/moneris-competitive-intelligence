@@ -138,3 +138,36 @@ CREATE TABLE IF NOT EXISTS scan_log (
     details      TEXT
 );
 ALTER TABLE scan_log DISABLE ROW LEVEL SECURITY;
+
+-- ---------------------------------------------------------------------------
+-- OPTIONAL: keep RLS enabled instead of disabled
+-- ---------------------------------------------------------------------------
+-- This app is a single-tenant internal dashboard with no per-user data
+-- isolation — the anon key IS the app's only credential, so disabling RLS
+-- (above) is the simplest correct setup and is what this schema uses by
+-- default. If you'd rather leave RLS ON (e.g. for a stricter security
+-- posture or an org policy that requires it), run the block below INSTEAD
+-- of the DISABLE statements above: it re-enables RLS and adds an explicit
+-- policy granting the anon role full access on every table, which is
+-- functionally equivalent to disabling RLS but auditable as an explicit
+-- policy. Do not run both blocks against the same table — whichever runs
+-- last wins, and a stray "ENABLE ROW LEVEL SECURITY" with no matching
+-- policy silently blocks every read/write for the anon key (this is the
+-- most common cause of a Supabase-backed Streamlit app crashing right
+-- after RLS is toggled on in the Supabase dashboard).
+--
+-- DO $$
+-- DECLARE
+--     t TEXT;
+-- BEGIN
+--     FOR t IN SELECT unnest(ARRAY['snapshots', 'website_changes', 'product_intelligence',
+--                                   'review_sentiment', 'news_articles', 'threat_scores',
+--                                   'comparison_cards', 'historical_events', 'scan_log'])
+--     LOOP
+--         EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+--         EXECUTE format('DROP POLICY IF EXISTS anon_full_access ON %I', t);
+--         EXECUTE format(
+--             'CREATE POLICY anon_full_access ON %I FOR ALL TO anon USING (true) WITH CHECK (true)', t
+--         );
+--     END LOOP;
+-- END $$;
