@@ -866,7 +866,7 @@ with st.sidebar:
         "and updates the dashboard."
     )
 
-    run_clicked = st.button("🚀 Run Full Scan", type="primary", width="stretch")
+    run_clicked = st.button("🚀 Run Full Scan", type="primary", use_container_width=True)
 
     last_scan = database.get_last_scan()
     if last_scan:
@@ -907,7 +907,7 @@ with st.sidebar:
     if "pdf_bytes" not in st.session_state:
         st.session_state.pdf_bytes = None
 
-    if st.button("📄 Export Weekly Brief", width="stretch"):
+    if st.button("📄 Export Weekly Brief", use_container_width=True):
         with st.spinner("Generating PDF..."):
             try:
                 st.session_state.pdf_bytes = _generate_pdf_report()
@@ -921,7 +921,7 @@ with st.sidebar:
             data=st.session_state.pdf_bytes,
             file_name=f"moneris_weekly_brief_{datetime.now().strftime('%Y%m%d')}.pdf",
             mime="application/pdf",
-            width="stretch",
+            use_container_width=True,
         )
 
 
@@ -1367,7 +1367,7 @@ with tab5:
             .interactive()
         )
 
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(chart, use_container_width=True)
         st.info("Trend data builds up over time with each weekly scan.")
         st.caption(
             "Click a competitor name in the legend to highlight its line."
