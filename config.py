@@ -136,6 +136,123 @@ MONERIS_PRODUCT_AREAS = [
 ]
 
 # ---------------------------------------------------------------------------
+# Layer 1c: Social channels — LinkedIn and YouTube presence per competitor
+# ---------------------------------------------------------------------------
+# LinkedIn has no public RSS feed for company pages (confirmed: the standard
+# "…/posts/rss" pattern just returns the normal SPA HTML shell, not a feed),
+# and unauthenticated requests to a company page only return the gated
+# "About" overview, never the post feed. Google News scoped to
+# site:linkedin.com/posts is used as the proxy signal instead — noisier
+# (personal employee posts get mixed in with company content) but real and
+# accessible; analyze_social_intelligence is prompted to filter for
+# official/campaign-relevant content specifically.
+#
+# YouTube channel entries store a resolved channel_id, NOT the @handle —
+# the legacy `?user=` RSS shortcut is unsafe: `user=Stripe` silently
+# resolved to an unrelated channel (old, unconnected music uploads from
+# 2012) rather than Stripe's real channel. Every channel_id below was
+# resolved from the live @handle page's canonical link and confirmed to
+# return that competitor's actual recent uploads before being added.
+SOCIAL_PAGE_TYPE = "social_intelligence"
+
+SOCIAL_PAGES = {
+    "Stripe": {
+        "linkedin_query": "Stripe",
+        "youtube_channel_id": "UCM1guA1E-RHLO2OyfQPOkEQ",  # @stripe
+    },
+    "Square": {
+        "linkedin_query": '"Square" payments',
+        "youtube_channel_id": "UC8XWdXApGfNHTHSm1P9hLEQ",  # @Square
+    },
+    "PayPal": {
+        "linkedin_query": "PayPal",
+        "youtube_channel_id": "UCXe1qKfGweMKTnmRrMw9yOg",  # @PayPal
+    },
+    "Shopify Payments": {
+        "linkedin_query": "Shopify",
+        "youtube_channel_id": "UCIv38OrggTu3vNkCAo96-CQ",  # @shopify
+    },
+    # Helcim, Nuvei, Clover, and Global Payments were requested for LinkedIn
+    # only (no YouTube channel given) — youtube_channel_id is omitted for
+    # these rather than guessed.
+    "Helcim": {
+        "linkedin_query": "Helcim payments",
+    },
+    "Nuvei": {
+        "linkedin_query": "Nuvei",
+    },
+    "Clover": {
+        "linkedin_query": '"Clover" point of sale payments',
+    },
+    "Global Payments": {
+        "linkedin_query": "Global Payments Canada",
+    },
+}
+
+# The five Claude-generated fields for each Social Channels card.
+SOCIAL_CAMPAIGN_FOCUS_OPTIONS = [
+    "Product launch",
+    "Merchant acquisition",
+    "Brand awareness",
+    "Thought leadership",
+]
+SOCIAL_TONE_SHIFT_OPTIONS = ["More aggressive", "Stable", "Retreating"]
+
+# ---------------------------------------------------------------------------
+# Layer 1d: Offers & promotions pages
+# ---------------------------------------------------------------------------
+# Every URL below was tested for real, accessible content before being
+# added. Several of the specifically-requested URLs (Stripe's /campaigns,
+# Square's /offers, PayPal's /offers and /promotions, Nuvei's /pricing) 404
+# or return an empty JS shell — those competitors fall back to their
+# richest available pricing/promo-adjacent page instead, documented below.
+# Helcim is excluded entirely: helcim.com (every path, confirmed again
+# including /pricing/) returns a 403 Cloudflare block, same issue already
+# documented for the main Helcim entry in COMPETITORS.
+OFFERS_PAGE_TYPE = "offers_promotions"
+
+OFFERS_PAGES = {
+    # /campaigns 404s and Stripe has no dedicated promotions page; its
+    # pricing page is the only place volume-discount-style offers appear.
+    "Stripe": {
+        "Pricing": "https://stripe.com/en-ca/pricing",
+    },
+    # /offers 404s (empty); /hardware is Square's real promo-adjacent page
+    # (bundle pricing, free-trial-style hardware offers).
+    "Square": {
+        "Hardware": "https://squareup.com/ca/en/hardware",
+    },
+    # /offers returns 200 but is an empty JS shell (16 words); no working
+    # dedicated offers/promotions page was found, so this reuses the same
+    # fee page already tracked as Pricing in COMPETITORS — acceptable since
+    # it feeds a distinct offer-specific classification, not a duplicate view.
+    "PayPal": {
+        "Merchant fees": "https://www.paypal.com/ca/business/paypal-business-fees",
+    },
+    "Shopify Payments": {
+        "Free trial": "https://www.shopify.com/ca/free-trial",
+    },
+    # /pricing 404s; no dedicated offers page found. Reuses the existing
+    # Product page (already tracked in COMPETITORS) as the closest available
+    # promo-adjacent content.
+    "Nuvei": {
+        "Payment solution": "https://www.nuvei.com/payment-solution",
+    },
+    "Clover": {
+        "Pricing": "https://www.clover.com/ca/en/pricing",
+    },
+    "Global Payments": {
+        "Pricing": "https://www.heartland.us/pricing",
+    },
+}
+
+OFFER_TYPES = ["free_trial", "hardware_discount", "fee_waiver", "cashback", "bundle", "rate_reduction"]
+OFFER_TARGET_SEGMENTS = ["SMB", "LAKA", "New merchants", "Existing merchants"]
+OFFER_AGGRESSIVENESS_LEVELS = ["High", "Medium", "Low"]
+OFFER_DURATIONS = ["Limited time", "Ongoing"]
+OFFER_MONERIS_GAP_VALUES = ["Yes", "No", "Partial"]
+
+# ---------------------------------------------------------------------------
 # Scraping configuration
 # ---------------------------------------------------------------------------
 USER_AGENT = (

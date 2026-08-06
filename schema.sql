@@ -58,6 +58,44 @@ CREATE TABLE IF NOT EXISTS product_intelligence (
 );
 ALTER TABLE product_intelligence DISABLE ROW LEVEL SECURITY;
 
+-- Social intelligence: Claude's synthesis of each competitor's LinkedIn (via Google
+-- News proxy — LinkedIn has no public post feed for unauthenticated requests) and
+-- YouTube signal into 5 fields. One row per scan per competitor; powers the Social
+-- Channels tab. target_segment_signals is a JSON array since a competitor's social
+-- activity can target more than one Moneris segment at once.
+CREATE TABLE IF NOT EXISTS social_intelligence (
+    id                     BIGSERIAL PRIMARY KEY,
+    analyzed_at            TEXT NOT NULL,
+    competitor             TEXT NOT NULL,
+    messaging_theme        TEXT NOT NULL,
+    campaign_focus         TEXT NOT NULL,
+    target_segment_signals JSONB NOT NULL DEFAULT '[]',
+    tone_shift             TEXT NOT NULL,
+    moneris_opportunity    TEXT NOT NULL,
+    linkedin_signal_count  INTEGER NOT NULL DEFAULT 0,
+    youtube_signal_count   INTEGER NOT NULL DEFAULT 0
+);
+ALTER TABLE social_intelligence DISABLE ROW LEVEL SECURITY;
+
+-- Offers & promotions intelligence: Claude's classification of each detected change
+-- on a competitor's pricing/promo page. One row per detected offer-page change;
+-- powers the Offers & Promotions tab and its Moneris Gap Summary.
+CREATE TABLE IF NOT EXISTS offers_intelligence (
+    id             BIGSERIAL PRIMARY KEY,
+    detected_at    TEXT NOT NULL,
+    analyzed_at    TEXT NOT NULL,
+    competitor     TEXT NOT NULL,
+    page_type      TEXT NOT NULL,
+    url            TEXT NOT NULL,
+    description    TEXT NOT NULL,
+    offer_type     TEXT NOT NULL,
+    target_segment TEXT NOT NULL,
+    aggressiveness TEXT NOT NULL,
+    duration       TEXT NOT NULL,
+    moneris_gap    TEXT NOT NULL
+);
+ALTER TABLE offers_intelligence DISABLE ROW LEVEL SECURITY;
+
 -- Review sentiment: Google Play Store analysis result per competitor per scan
 CREATE TABLE IF NOT EXISTS review_sentiment (
     id                   BIGSERIAL PRIMARY KEY,
@@ -161,6 +199,7 @@ ALTER TABLE scan_log DISABLE ROW LEVEL SECURITY;
 --     t TEXT;
 -- BEGIN
 --     FOR t IN SELECT unnest(ARRAY['snapshots', 'website_changes', 'product_intelligence',
+--                                   'social_intelligence', 'offers_intelligence',
 --                                   'review_sentiment', 'news_articles', 'threat_scores',
 --                                   'comparison_cards', 'historical_events', 'scan_log'])
 --     LOOP

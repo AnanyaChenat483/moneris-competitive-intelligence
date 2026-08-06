@@ -18,6 +18,9 @@ from config import (
     COMPETITORS,
     MONERIS_GAP_LABEL,
     MONERIS_PRODUCT_AREAS,
+    OFFER_AGGRESSIVENESS_LEVELS,
+    OFFER_TARGET_SEGMENTS,
+    OFFER_TYPES,
     PLAY_STORE_APP_IDS,
     SEGMENTS_AFFECTED,
     TARGET_COMPANY,
@@ -75,6 +78,20 @@ hr { border-color: #1E293B !important; }
     letter-spacing: -.025em; line-height: 1.2; margin-bottom: 2px;
 }
 .app-tagline { font-size: .85rem; color: #475569; margin-bottom: 0; }
+
+/* ── Executive summary ────────────────────────────────────── */
+.exec-summary {
+    background: #131A2E; border: 1px solid #1E293B; border-radius: 12px;
+    padding: 16px 20px; margin: 14px 0 18px;
+}
+.exec-summary-title {
+    font-size: .68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .09em; color: #00D4AA; margin-bottom: 10px;
+}
+.exec-summary p {
+    font-size: .87rem; color: #CBD5E1; line-height: 1.6; margin: 0 0 10px;
+}
+.exec-summary p:last-child { margin-bottom: 0; }
 
 /* ── KPI strip ─────────────────────────────────────────── */
 .kpi-strip { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 20px; }
@@ -199,6 +216,28 @@ hr { border-color: #1E293B !important; }
 .rv-opp-text { font-size: .86rem; color: #5EEAD4; line-height: 1.5; }
 .rv-footer { font-size: .7rem; color: #374151; margin-top: 10px; }
 
+/* ── Social channel cards ──────────────────────────────── */
+.sc-card {
+    background: #131A2E; border: 1px solid #1E293B; border-radius: 14px;
+    padding: 20px 24px; margin-bottom: 14px;
+}
+.sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.sc-name { font-size: 1.1rem; font-weight: 700; color: #F1F5F9; }
+.sc-field-label {
+    font-size: .65rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .09em; color: #475569; margin: 12px 0 5px;
+}
+.sc-field-label:first-of-type { margin-top: 0; }
+.sc-field-text { font-size: .87rem; color: #CBD5E1; line-height: 1.55; }
+.sc-segments { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.sc-opp {
+    background: rgba(0,212,170,.07); border: 1px solid rgba(0,212,170,.22);
+    border-radius: 8px; padding: 10px 14px; margin-top: 12px;
+}
+.sc-opp-title { font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: #00D4AA; margin-bottom: 5px; }
+.sc-opp-text { font-size: .86rem; color: #5EEAD4; line-height: 1.5; }
+.sc-footer { font-size: .7rem; color: #374151; margin-top: 12px; }
+
 /* ── News cards ─────────────────────────────────────────── */
 .nc {
     background: #131A2E; border: 1px solid #1E293B; border-radius: 10px;
@@ -317,6 +356,21 @@ def change_type_pill(ct: str) -> str:
 def threat_level_pill(level: str) -> str:
     cls = {"High": "p-red", "Medium": "p-amber", "Low": "p-green"}.get(level, "p-grey")
     return f'<span class="pill {cls}">{_e(level)}</span>'
+
+
+def tone_shift_pill(tone: str) -> str:
+    cls = {"More aggressive": "p-red", "Stable": "p-grey", "Retreating": "p-blue"}.get(tone, "p-grey")
+    return f'<span class="pill {cls}">{_e(tone)}</span>'
+
+
+def offer_aggressiveness_pill(level: str) -> str:
+    cls = {"High": "p-red", "Medium": "p-amber", "Low": "p-green"}.get(level, "p-grey")
+    return f'<span class="pill {cls}">{_e(level)}</span>'
+
+
+def moneris_gap_pill(gap: str) -> str:
+    cls = {"No": "p-red", "Partial": "p-amber", "Yes": "p-green"}.get(gap, "p-grey")
+    return f'<span class="pill {cls}">{_e(gap)}</span>'
 
 
 def _parse_news_date(date_str: str):
@@ -804,6 +858,33 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
+# Executive summary
+# ---------------------------------------------------------------------------
+
+st.markdown(
+    '<div class="exec-summary">'
+    '<div class="exec-summary-title">Executive Summary</div>'
+    '<p>This competitive intelligence solution provides a comprehensive, end-to-end view '
+    'of the market by analyzing competitor activity across products, merchant segments, '
+    'programs, and in-market experiences. It brings together insights across hardware, '
+    'software, go-to-market strategies, marketing campaigns, social channels, and merchant '
+    'feedback to help teams understand how competitors are evolving and where opportunities '
+    'exist.</p>'
+    "<p>As part of Moneris' 2030 Commerce Strategy, having a clear understanding of what "
+    'companies are doing across different segments, product categories, and customer '
+    'experiences is critical to making informed business decisions and shaping future '
+    'product roadmaps.</p>'
+    "<p>Built to support Moneris' mission of powering Canadian commerce, this AI agent "
+    'continuously monitors the competitive landscape, identifies emerging trends, and '
+    'transforms market signals into actionable insights. By connecting product '
+    'intelligence with real-world merchant experiences, it enables teams to better '
+    'understand customer needs, anticipate market shifts, and make faster, data-driven '
+    'decisions.</p>'
+    '</div>',
+    unsafe_allow_html=True,
+)
+
+# ---------------------------------------------------------------------------
 # KPI strip — threat score per competitor
 # ---------------------------------------------------------------------------
 
@@ -929,21 +1010,23 @@ with st.sidebar:
 # Tabs
 # ---------------------------------------------------------------------------
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab_pi, tab_wc, tab_sc, tab_op, tab_cr, tab_ln, tab_mvc, tab_tr = st.tabs([
+    "🧭 Product Insights",
     "🌐 Website Changes",
+    "📱 Social Channels",
+    "🏷️ Offers & Promotions",
     "⭐ Customer Reviews",
     "📰 Latest News",
     "⚖️ Moneris vs Competitors",
     "📈 Trends",
-    "🧭 Product Intelligence",
 ])
 
 
 # ---------------------------------------------------------------------------
-# Tab 1 — Website Changes
+# Website Changes
 # ---------------------------------------------------------------------------
 
-with tab1:
+with tab_wc:
     st.markdown(
         "**Website Changes** &nbsp;"
         "<span style='color:#475569;font-size:.85rem'>Detected changes to competitor pricing and product pages</span>",
@@ -1007,10 +1090,10 @@ with tab1:
 
 
 # ---------------------------------------------------------------------------
-# Tab 2 — Customer Reviews (Google Play Store)
+# Customer Reviews (Google Play Store)
 # ---------------------------------------------------------------------------
 
-with tab2:
+with tab_cr:
     st.markdown(
         "**Customer Reviews — Google Play Store** &nbsp;"
         "<span style='color:#475569;font-size:.85rem'>Claude-analyzed app review sentiment, themes, and Moneris opportunities</span>",
@@ -1102,10 +1185,10 @@ with tab2:
 
 
 # ---------------------------------------------------------------------------
-# Tab 3 — Latest News
+# Latest News
 # ---------------------------------------------------------------------------
 
-with tab3:
+with tab_ln:
     st.markdown(
         "**Latest News** &nbsp;"
         "<span style='color:#475569;font-size:.85rem'>Recent articles sorted by Moneris relevance</span>",
@@ -1185,10 +1268,10 @@ with tab3:
 
 
 # ---------------------------------------------------------------------------
-# Tab 4 — Moneris vs Competitors
+# Moneris vs Competitors
 # ---------------------------------------------------------------------------
 
-with tab4:
+with tab_mvc:
     st.markdown(
         f'**{_e(TARGET_COMPANY)} vs Competitors** &nbsp;'
         '<span style="color:#475569;font-size:.85rem">AI-generated comparison across key dimensions, refreshed each scan</span>',
@@ -1264,10 +1347,10 @@ with tab4:
 
 
 # ---------------------------------------------------------------------------
-# Tab 5 — Trends
+# Trends
 # ---------------------------------------------------------------------------
 
-with tab5:
+with tab_tr:
     st.markdown(
         "**Threat Score Trends** &nbsp;"
         "<span style='color:#475569;font-size:.85rem'>Threat score over time per competitor with attribution</span>",
@@ -1475,12 +1558,12 @@ with tab5:
 
 
 # ---------------------------------------------------------------------------
-# Tab 6 — Product Intelligence
+# Product Insights
 # ---------------------------------------------------------------------------
 
-with tab6:
+with tab_pi:
     st.markdown(
-        "**Product Intelligence** &nbsp;"
+        "**Product Insights** &nbsp;"
         "<span style='color:#475569;font-size:.85rem'>Changelog, newsroom, and release-note moves mapped to the "
         f"{_e(TARGET_COMPANY)} product they threaten, or the gap they reveal</span>",
         unsafe_allow_html=True,
@@ -1566,6 +1649,196 @@ with tab6:
                 f'<div class="ac ac-threat">'
                 f'<div class="ac-title">&#9650; Product Gaps &mdash; areas where competitors have features '
                 f'{_e(TARGET_COMPANY)} doesn&rsquo;t</div>'
+                f'{gap_items}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Social Channels
+# ---------------------------------------------------------------------------
+
+with tab_sc:
+    st.markdown(
+        "**Social Channels** &nbsp;"
+        "<span style='color:#475569;font-size:.85rem'>LinkedIn and YouTube signal per competitor, synthesized into "
+        "messaging theme, campaign focus, target segment, tone, and Moneris opportunity</span>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+
+    social_data = None
+    try:
+        social_data = database.get_latest_social_intelligence()
+    except Exception as exc:
+        if "PGRST205" in str(exc) or "Could not find the table" in str(exc):
+            st.warning(
+                "The `social_intelligence` table doesn't exist yet in Supabase. "
+                "Run the updated schema.sql (look for the `social_intelligence` table) "
+                "in the Supabase SQL Editor, then run a scan to populate this tab."
+            )
+        else:
+            st.error(f"Could not load social intelligence: {exc}")
+
+    if social_data is not None:
+        if not social_data:
+            st.info("No social intelligence recorded yet. Run a scan from the sidebar to get started.")
+        else:
+            cards = []
+            for competitor in COMPETITOR_NAMES:
+                rec = social_data.get(competitor)
+                if not rec:
+                    cards.append(
+                        f'<div class="sc-card">'
+                        f'<div class="sc-header"><div class="sc-name">{_e(competitor)}</div></div>'
+                        f'<div style="color:#475569;font-size:.85rem">No social data yet. Run a scan to fetch signal.</div>'
+                        f'</div>'
+                    )
+                    continue
+
+                segment_pills = " ".join(
+                    f'<span class="pill p-blue">{_e(s)}</span>'
+                    for s in (rec.get("target_segment_signals") or [])
+                ) or '<span style="color:#374151;font-size:.82rem">No segment signal</span>'
+
+                campaign_cls = {
+                    "Product launch": "p-teal", "Merchant acquisition": "p-amber",
+                    "Brand awareness": "p-purple", "Thought leadership": "p-blue",
+                }.get(rec.get("campaign_focus"), "p-grey")
+
+                signal_counts = (
+                    f'LinkedIn: {rec.get("linkedin_signal_count", 0)} &nbsp;&#183;&nbsp; '
+                    f'YouTube: {rec.get("youtube_signal_count", 0)}'
+                )
+
+                cards.append(
+                    f'<div class="sc-card">'
+                    f'<div class="sc-header">'
+                    f'<div class="sc-name">{_e(competitor)}</div>'
+                    f'<div>{tone_shift_pill(rec.get("tone_shift", ""))}</div>'
+                    f'</div>'
+
+                    f'<div class="sc-field-label">Messaging theme</div>'
+                    f'<div class="sc-field-text">{_e(rec.get("messaging_theme", ""))}</div>'
+
+                    f'<div class="sc-field-label">Campaign focus</div>'
+                    f'<span class="pill {campaign_cls}">{_e(rec.get("campaign_focus", ""))}</span>'
+
+                    f'<div class="sc-field-label">Target segment signals</div>'
+                    f'<div class="sc-segments">{segment_pills}</div>'
+
+                    f'<div class="sc-opp">'
+                    f'<div class="sc-opp-title">Moneris opportunity</div>'
+                    f'<div class="sc-opp-text">{_e(rec.get("moneris_opportunity", ""))}</div>'
+                    f'</div>'
+
+                    f'<div class="sc-footer">{signal_counts} &nbsp;&#183;&nbsp; '
+                    f'Last updated: {_e(rec.get("analyzed_at", ""))}</div>'
+                    f'</div>'
+                )
+
+            st.markdown("".join(cards), unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Offers & Promotions
+# ---------------------------------------------------------------------------
+
+with tab_op:
+    st.markdown(
+        "**Offers & Promotions** &nbsp;"
+        "<span style='color:#475569;font-size:.85rem'>Detected promotional offers and pricing incentives across "
+        "competitor pricing/promo pages</span>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+
+    offers_all = None
+    try:
+        offers_all = database.get_offers_intelligence(limit=1000)
+    except Exception as exc:
+        if "PGRST205" in str(exc) or "Could not find the table" in str(exc):
+            st.warning(
+                "The `offers_intelligence` table doesn't exist yet in Supabase. "
+                "Run the updated schema.sql (look for the `offers_intelligence` table) "
+                "in the Supabase SQL Editor, then run a scan to populate this tab."
+            )
+        else:
+            st.error(f"Could not load offers intelligence: {exc}")
+
+    if offers_all is not None:
+        if not offers_all:
+            st.info("No offers or promotions recorded yet. Run a scan from the sidebar to get started.")
+        else:
+            offers_competitors = sorted({row["competitor"] for row in offers_all})
+
+            fc1, fc2, fc3 = st.columns(3)
+            with fc1:
+                offers_competitor = st.selectbox("Competitor", ["All"] + offers_competitors, key="of_c")
+            with fc2:
+                offers_type = st.selectbox("Offer type", ["All"] + OFFER_TYPES, key="of_t")
+            with fc3:
+                offers_segment = st.selectbox("Target segment", ["All"] + OFFER_TARGET_SEGMENTS, key="of_s")
+
+            rows = offers_all
+            if offers_competitor != "All":
+                rows = [r for r in rows if r["competitor"] == offers_competitor]
+            if offers_type != "All":
+                rows = [r for r in rows if r["offer_type"] == offers_type]
+            if offers_segment != "All":
+                rows = [r for r in rows if r["target_segment"] == offers_segment]
+
+            if not rows:
+                st.info("No offers match the selected filters.")
+            else:
+                headers = ["Date", "Competitor", "Offer", "Type", "Segment", "Aggressiveness", "Duration", "Moneris Match", "Link"]
+                col_widths = ["7%", "10%", "28%", "12%", "12%", "10%", "8%", "9%", "4%"]
+                colgroup = "".join(f'<col style="width:{w}">' for w in col_widths)
+                ths = "".join(f'<th>{_e(h)}</th>' for h in headers)
+
+                rows_html = []
+                for r in rows:
+                    date_only = (r.get("detected_at") or "").split("T")[0]
+                    rows_html.append(
+                        f'<tr>'
+                        f'<td style="color:#64748B;font-size:.8rem">{_e(date_only)}</td>'
+                        f'<td><span class="comp-badge">{_e(r["competitor"])}</span></td>'
+                        f'<td style="color:#E2E8F0">{_e(r["description"])}</td>'
+                        f'<td><span class="pill p-grey">{_e(r["offer_type"])}</span></td>'
+                        f'<td style="color:#94A3B8;font-size:.82rem">{_e(r["target_segment"])}</td>'
+                        f'<td style="text-align:center">{offer_aggressiveness_pill(r["aggressiveness"])}</td>'
+                        f'<td style="color:#94A3B8;font-size:.82rem">{_e(r["duration"])}</td>'
+                        f'<td style="text-align:center">{moneris_gap_pill(r["moneris_gap"])}</td>'
+                        f'<td><a href="{_e(r["url"])}" target="_blank">&#8599;</a></td>'
+                        f'</tr>'
+                    )
+
+                st.markdown(
+                    f'<table class="wct"><colgroup>{colgroup}</colgroup>'
+                    f'<tr>{ths}</tr>'
+                    + "".join(rows_html)
+                    + "</table>",
+                    unsafe_allow_html=True,
+                )
+
+            st.write("")
+            st.markdown("---")
+
+            gap_rows = [r for r in offers_all if r["moneris_gap"] in ("No", "Partial")]
+            if offers_competitor != "All":
+                gap_rows = [r for r in gap_rows if r["competitor"] == offers_competitor]
+
+            gap_items = "".join(
+                f'<div class="ac-item"><strong>{_e(g["competitor"])}</strong> &mdash; {_e(g["description"])} '
+                f'<span class="pill {"p-red" if g["moneris_gap"] == "No" else "p-amber"}">{_e(g["moneris_gap"])} match</span></div>'
+                for g in gap_rows
+            ) or '<div class="ac-item">No gaps identified yet — Moneris currently matches all detected offers.</div>'
+
+            st.markdown(
+                f'<div class="ac ac-threat">'
+                f'<div class="ac-title">&#9650; Moneris Gap Summary &mdash; competitor offers '
+                f'{_e(TARGET_COMPANY)} is not fully matching</div>'
                 f'{gap_items}'
                 f'</div>',
                 unsafe_allow_html=True,

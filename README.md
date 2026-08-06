@@ -40,8 +40,14 @@ After each scan, Claude synthesizes all signals into a cross-competitor comparis
 ### Trends
 Tracks threat scores over time per competitor with a fully dark-themed Altair line chart. Each data point includes a Claude-generated one-sentence explanation of why the score moved. Historical seed data from real market events (2022–2025) provides baseline context from day one. The breakdown table shows every score component with the full attribution text.
 
-### Product Intelligence
+### Product Insights
 Scrapes each competitor's changelog, "shipped"/roadmap, newsroom, and blog pages — the richest source of concrete product moves, tracked separately from the marketing pricing/product pages under `page_type = product_updates`. Every detected change is mapped by Claude to the Moneris product area it threatens (Go Terminal/POS, Online/Total Commerce, MCP Server & developer tools, PAYD/Tap to Pay, Data & Insights, Payment Facilitation) or flagged as a product gap (e.g. BNPL, embedded finance, stablecoins) with a threat level and a one-sentence recommended action. Filterable by competitor and Moneris product area, with a dedicated Product Gaps summary.
+
+### Social Channels
+Tracks each competitor's LinkedIn and YouTube presence. LinkedIn has no public post feed for unauthenticated requests, so a Google News search scoped to `site:linkedin.com/posts` is used as a proxy signal instead. YouTube channels are resolved from their `@handle` to a canonical `channel_id` and pulled via YouTube's public RSS feed (the legacy `?user=` shortcut is avoided — it can silently match an unrelated old channel with the same name). Claude synthesizes both sources per competitor into: current messaging theme, campaign focus (product launch / merchant acquisition / brand awareness / thought leadership), target Moneris segment signals, tone shift (more aggressive / stable / retreating), and a one-sentence Moneris opportunity — shown as one card per competitor.
+
+### Offers & Promotions
+Tracks pricing and promotions pages for offer-worthy changes — free trials, hardware discounts, fee waivers, cashback, bundles, and rate reductions. Every detected change is classified by Claude into offer type, target segment (SMB / LAKA / New merchants / Existing merchants), aggressiveness, duration (limited-time vs. ongoing), and whether Moneris currently matches the offer (Yes / No / Partial). Filterable by competitor, offer type, and segment, with a Moneris Gap Summary highlighting offers Moneris isn't matching.
 
 ---
 
@@ -125,13 +131,14 @@ The app seeds historical event data automatically on first run. Click **Run Full
 
 ```
 moneris-competitive-intelligence/
-├── app.py                        # Streamlit dashboard (all six tabs)
+├── app.py                        # Streamlit dashboard (all eight tabs)
 ├── scanner.py                    # Scan orchestration — website -> reviews -> news -> scoring
 ├── analyzer.py                   # Claude API calls — all AI analysis and synthesis
 ├── database.py                   # Supabase persistence layer
 ├── scraper.py                    # Website scraper (requests + BeautifulSoup)
 ├── play_reviews.py               # Google Play Store review fetcher
 ├── news_client.py                # Google News RSS client
+├── social_client.py              # LinkedIn (Google News proxy) + YouTube RSS client
 ├── seed_data.py                  # Historical event and website changes seed data
 ├── config.py                     # Competitor URLs, app IDs, weights, model config
 ├── schema.sql                    # Supabase table definitions (run once in SQL Editor)

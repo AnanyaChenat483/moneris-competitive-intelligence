@@ -6,13 +6,23 @@ import hashlib
 import database
 from analyzer import (
     analyze_news_batch,
+    analyze_offer_change,
     analyze_product_intelligence,
     analyze_review_sentiment,
+    analyze_social_intelligence,
     analyze_website_change,
     explain_threat_score_change,
     generate_comparison_card,
 )
-from config import COMPETITORS, PRODUCT_UPDATE_PAGE_TYPE, PRODUCT_UPDATE_PAGES, SMB_RELEVANCE, THREAT_WEIGHTS
+from config import (
+    COMPETITORS,
+    OFFERS_PAGES,
+    PRODUCT_UPDATE_PAGE_TYPE,
+    PRODUCT_UPDATE_PAGES,
+    SMB_RELEVANCE,
+    SOCIAL_PAGES,
+    THREAT_WEIGHTS,
+)
 from news_client import NewsError, fetch_news_for_competitor
 from play_reviews import get_reviews_for_competitor
 from scraper import (
@@ -22,6 +32,7 @@ from scraper import (
     scrape_page,
     scrape_product_update_page,
 )
+from social_client import SocialFetchError, fetch_linkedin_signal, fetch_youtube_uploads
 
 FEATURE_VELOCITY_BASELINE = 2.0  # used when no website changes detected this scan
 NEWS_MOMENTUM_BASELINE = 3.0  # used when no news articles are available this scan
@@ -246,6 +257,137 @@ def _scan_product_updates(competitor: str, report) -> list[dict]:
     return detected_changes
 
 
+def _scan_social(competitor: str, report) -> dict | None:
+    """Fetch LinkedIn (Google News proxy) + YouTube signal for a competitor and synthesize it.
+
+    Runs once per competitor per scan (no diffing — social signal is
+    resynthesized fresh each time, unlike the change-detection layers).
+    Returns the synthesized dict, or None if no social pages are configured
+    or both signal sources came back empty/failed.
+    """
+    pages = SOCIAL_PAGES.get(competitor)
+    if not pages:
+        return None
+
+    linkedin_query = pages.get("linkedin_query")
+    youtube_channel_id = pages.get("youtube_channel_id")
+
+    linkedin_items = []
+    if linkedin_query:
+        report(f"  [Social] LinkedIn (via Google News): {linkedin_query!r}")
+        try:
+            linkedin_items = fetch_linkedin_signal(competitor, linkedin_query)
+            _log(f"{competitor} / LinkedIn: fetched {len(linkedin_items)} result(s)")
+        except SocialFetchError as exc:
+            report(f"    Error: {exc}")
+            _log(f"{competitor} / LinkedIn: FETCH FAILED — {exc}")
+
+    youtube_items = []
+    if youtube_channel_id:
+        report(f"  [Social] YouTube: channel_id={youtube_channel_id}")
+        try:
+            youtube_items = fetch_youtube_uploads(competitor, youtube_channel_id)
+            _log(f"{competitor} / YouTube: fetched {len(youtube_items)} upload(s)")
+        except SocialFetchError as exc:
+            report(f"    Error: {exc}")
+            _log(f"{competitor} / YouTube: FETCH FAILED — {exc}")
+
+    if not linkedin_items and not youtube_items:
+        report("    No social signal available this scan.")
+        return None
+
+    try:
+        _log(f"{competitor} / Social: calling analyze_social_intelligence()")
+        result = analyze_social_intelligence(competitor, linkedin_items, youtube_items)
+    except Exception as exc:
+        report(f"    Social intelligence analysis failed: {exc}")
+        _log(f"{competitor} / Social: ANALYSIS FAILED — {type(exc).__name__}: {exc}")
+        return None
+
+    database.insert_social_intelligence(
+        competitor=competitor,
+        messaging_theme=result["messaging_theme"],
+        campaign_focus=result["campaign_focus"],
+        target_segment_signals=result["target_segment_signals"],
+        tone_shift=result["tone_shift"],
+        moneris_opportunity=result["moneris_opportunity"],
+        linkedin_signal_count=len(linkedin_items),
+        youtube_signal_count=len(youtube_items),
+    )
+    _log(f"{competitor} / Social: inserted social_intelligence row")
+    report(f"    Social signal synthesized: {result['campaign_focus']} / {result['tone_shift']}")
+
+    return result
+
+
+def _scan_offers(competitor: str, report) -> list[dict]:
+    """Scrape pricing/promo pages for a competitor and classify detected changes as offers.
+
+    Mirrors _scan_website / _scan_product_updates: snapshot-diff each
+    configured offers page, and only classify+store when real content
+    changed. Snapshot keys are prefixed to avoid colliding with the other
+    two page-tracking layers that may share the same URL.
+    """
+    detected = []
+    pages = OFFERS_PAGES.get(competitor, {})
+
+    for label, url in pages.items():
+        snapshot_key = f"offers::{label}"
+        report(f"  [Offers] {label}: {url}")
+        _log(f"{competitor} / {label}: fetching {url}")
+
+        try:
+            content = scrape_page(url)
+        except ScrapeError as exc:
+            report(f"    Error: {exc}")
+            _log(f"{competitor} / {label}: SCRAPE FAILED — {exc}")
+            continue
+
+        new_text = content_to_text(content)
+        new_hash = _hash_text(new_text)
+        snapshot = database.get_snapshot(competitor, snapshot_key)
+
+        if snapshot is None:
+            database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+            report("    No previous snapshot - baseline stored.")
+            _log(f"{competitor} / {label}: no previous snapshot — baseline stored.")
+            continue
+
+        if snapshot["content_hash"] == new_hash:
+            report("    No changes detected.")
+            continue
+
+        old_text = snapshot["content_text"]
+        diff_text = _build_diff(old_text, new_text)
+
+        try:
+            offer = analyze_offer_change(competitor, label, url, diff_text)
+        except Exception as exc:
+            report(f"    Change detected, but offer classification failed: {exc}")
+            _log(f"{competitor} / {label}: OFFER ANALYSIS FAILED — {exc}")
+            database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+            continue
+
+        database.insert_offers_intelligence(
+            competitor=competitor,
+            page_type=label,
+            url=url,
+            description=offer["description"],
+            offer_type=offer["offer_type"],
+            target_segment=offer["target_segment"],
+            aggressiveness=offer["aggressiveness"],
+            duration=offer["duration"],
+            moneris_gap=offer["moneris_gap"],
+        )
+        database.upsert_snapshot(competitor, snapshot_key, url, content.get("title", ""), new_hash, new_text)
+        _log(f"{competitor} / {label}: inserted offers_intelligence row (offer_type={offer['offer_type']})")
+
+        detected.append(offer)
+        report(f"    Offer detected ({offer['offer_type']}, {offer['aggressiveness']} aggressiveness): {offer['description']}")
+
+    return detected
+
+
 def _scan_reviews(competitor: str, report) -> dict:
     """Fetch Google Play Store reviews and analyze sentiment for a competitor."""
     reviews = get_reviews_for_competitor(competitor, progress_callback=report)
@@ -439,6 +581,16 @@ def run_scan(progress_callback=None) -> dict:
             errors.append(f"{competitor}: product updates scan failed ({exc})")
             product_changes = []
         website_changes = website_changes + product_changes
+
+        try:
+            _scan_social(competitor, report)
+        except Exception as exc:
+            errors.append(f"{competitor}: social scan failed ({exc})")
+
+        try:
+            _scan_offers(competitor, report)
+        except Exception as exc:
+            errors.append(f"{competitor}: offers scan failed ({exc})")
 
         try:
             sentiment = _scan_reviews(competitor, report)

@@ -212,6 +212,94 @@ def get_product_intelligence(limit: int = 500, competitor: str = None, moneris_p
 
 
 # ---------------------------------------------------------------------------
+# Social intelligence (Feature 6 / Social Channels tab)
+# ---------------------------------------------------------------------------
+
+def insert_social_intelligence(competitor: str, messaging_theme: str, campaign_focus: str,
+                                 target_segment_signals: list, tone_shift: str,
+                                 moneris_opportunity: str, linkedin_signal_count: int,
+                                 youtube_signal_count: int) -> None:
+    now = _now()
+    _log(f"insert_social_intelligence({competitor!r}) campaign_focus={campaign_focus!r}")
+    try:
+        resp = _client().table("social_intelligence").insert(
+            {
+                "analyzed_at": now,
+                "competitor": competitor,
+                "messaging_theme": messaging_theme,
+                "campaign_focus": campaign_focus,
+                "target_segment_signals": target_segment_signals,
+                "tone_shift": tone_shift,
+                "moneris_opportunity": moneris_opportunity,
+                "linkedin_signal_count": linkedin_signal_count,
+                "youtube_signal_count": youtube_signal_count,
+            }
+        ).execute()
+        _log(f"  -> insert_social_intelligence done, rows_returned={len(resp.data or [])}")
+    except Exception as exc:
+        _log(f"  ERROR in insert_social_intelligence({competitor!r}): {exc}")
+        raise
+
+
+def get_latest_social_intelligence() -> dict:
+    """Return a dict mapping competitor -> latest social_intelligence row."""
+    resp = _client().table("social_intelligence").select("*").order("id", desc=True).execute()
+    result = {}
+    for row in (resp.data or []):
+        if row["competitor"] not in result:
+            result[row["competitor"]] = row
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Offers & promotions intelligence (Feature 7 / Offers & Promotions tab)
+# ---------------------------------------------------------------------------
+
+def insert_offers_intelligence(competitor: str, page_type: str, url: str, description: str,
+                                 offer_type: str, target_segment: str, aggressiveness: str,
+                                 duration: str, moneris_gap: str, detected_at: str = None) -> None:
+    now = _now()
+    _log(f"insert_offers_intelligence({competitor!r}, {page_type!r}) offer_type={offer_type!r}")
+    try:
+        resp = _client().table("offers_intelligence").insert(
+            {
+                "detected_at": detected_at or now,
+                "analyzed_at": now,
+                "competitor": competitor,
+                "page_type": page_type,
+                "url": url,
+                "description": description,
+                "offer_type": offer_type,
+                "target_segment": target_segment,
+                "aggressiveness": aggressiveness,
+                "duration": duration,
+                "moneris_gap": moneris_gap,
+            }
+        ).execute()
+        _log(f"  -> insert_offers_intelligence done, rows_returned={len(resp.data or [])}")
+    except Exception as exc:
+        _log(f"  ERROR in insert_offers_intelligence({competitor!r}): {exc}")
+        raise
+
+
+def get_offers_intelligence(limit: int = 500, competitor: str = None, offer_type: str = None,
+                              target_segment: str = None):
+    try:
+        q = _client().table("offers_intelligence").select("*")
+        if competitor and competitor != "All":
+            q = q.eq("competitor", competitor)
+        if offer_type and offer_type != "All":
+            q = q.eq("offer_type", offer_type)
+        if target_segment and target_segment != "All":
+            q = q.eq("target_segment", target_segment)
+        rows = q.order("detected_at", desc=True).limit(limit).execute().data or []
+        return rows
+    except Exception as exc:
+        _log(f"ERROR in get_offers_intelligence: {exc}")
+        raise
+
+
+# ---------------------------------------------------------------------------
 # Review sentiment (Layer 2 / Tab 2 — Google Play Store)
 # ---------------------------------------------------------------------------
 

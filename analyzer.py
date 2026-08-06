@@ -12,7 +12,14 @@ from config import (
     COMPARISON_DIMENSIONS,
     MONERIS_GAP_LABEL,
     MONERIS_PRODUCT_AREAS,
+    OFFER_AGGRESSIVENESS_LEVELS,
+    OFFER_DURATIONS,
+    OFFER_MONERIS_GAP_VALUES,
+    OFFER_TARGET_SEGMENTS,
+    OFFER_TYPES,
     SEGMENTS_AFFECTED,
+    SOCIAL_CAMPAIGN_FOCUS_OPTIONS,
+    SOCIAL_TONE_SHIFT_OPTIONS,
     TARGET_COMPANY,
     TARGET_COMPANY_CONTEXT,
 )
@@ -264,6 +271,150 @@ def _fallback_recommended_action(moneris_product: str, threat_level: str) -> str
         f"Have the {moneris_product} team review this change and assess a response, "
         f"given the {level} threat level."
     )
+
+
+# ---------------------------------------------------------------------------
+# Feature 6: Social Channels — synthesize LinkedIn + YouTube signal per competitor
+# ---------------------------------------------------------------------------
+
+_SOCIAL_INTELLIGENCE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "messaging_theme": {
+            "type": "string",
+            "description": "One or two sentences on what the competitor is talking about right now across their social presence.",
+        },
+        "campaign_focus": {
+            "type": "string",
+            "enum": SOCIAL_CAMPAIGN_FOCUS_OPTIONS,
+            "description": "The single dominant focus of their current social activity.",
+        },
+        "target_segment_signals": {
+            "type": "array",
+            "items": {"type": "string", "enum": SEGMENTS_AFFECTED},
+            "description": "Which of Moneris's four segments (SMB, LAKA, Partners, Developers) this social activity appears aimed at. Can include more than one.",
+            "minItems": 1,
+        },
+        "tone_shift": {
+            "type": "string",
+            "enum": SOCIAL_TONE_SHIFT_OPTIONS,
+            "description": "Whether their tone/posture reads as more aggressive, stable, or retreating versus a typical baseline.",
+        },
+        "moneris_opportunity": {
+            "type": "string",
+            "description": "One sentence on the narrative gap Moneris can own given what this competitor is (and isn't) saying.",
+        },
+    },
+    "required": ["messaging_theme", "campaign_focus", "target_segment_signals", "tone_shift", "moneris_opportunity"],
+    "additionalProperties": False,
+}
+
+
+def analyze_social_intelligence(competitor: str, linkedin_items: list[dict], youtube_items: list[dict]) -> dict:
+    """Synthesize raw LinkedIn (Google News proxy) and YouTube signal into the 5 Social Channels fields."""
+    linkedin_lines = "\n".join(f"- {i['headline']}" for i in linkedin_items) or "(no results)"
+    youtube_lines = "\n".join(f"- {i['title']}" for i in youtube_items) or "(no results)"
+
+    prompt = f"""You are a competitive intelligence analyst for {TARGET_COMPANY}.
+
+About {TARGET_COMPANY}:
+{TARGET_COMPANY_CONTEXT}
+
+You are analyzing {competitor}'s recent social media presence to infer their current
+market posture. Two raw signal sources were collected:
+
+LINKEDIN (via a Google News search scoped to site:linkedin.com/posts mentioning
+{competitor} — this is a noisy proxy, NOT a direct feed of {competitor}'s own posts.
+It mixes official company content with unrelated personal posts by employees or third
+parties who merely mention {competitor}. Filter for content that plausibly reflects
+{competitor}'s own messaging, campaigns, or product narrative; ignore personal chatter,
+job postings, and unrelated mentions):
+{linkedin_lines}
+
+YOUTUBE (real recent uploads from {competitor}'s official YouTube channel):
+{youtube_lines}
+
+Based on this signal, describe {competitor}'s current messaging theme, the dominant
+focus of their activity, which Moneris customer segment(s) it targets, whether their
+tone reads as more aggressive/stable/retreating, and one sentence on the narrative gap
+{TARGET_COMPANY} can own. If the signal is too thin or too noisy to support a confident
+read, say so plainly in messaging_theme rather than inventing specifics."""
+
+    return _create(_SOCIAL_INTELLIGENCE_SCHEMA, prompt)
+
+
+# ---------------------------------------------------------------------------
+# Feature 7: Offers & Promotions classification
+# ---------------------------------------------------------------------------
+
+_OFFER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "offer_type": {
+            "type": "string",
+            "enum": OFFER_TYPES,
+            "description": "The single category that best describes this offer or promotion.",
+        },
+        "target_segment": {
+            "type": "string",
+            "enum": OFFER_TARGET_SEGMENTS,
+            "description": "Who this offer is aimed at.",
+        },
+        "aggressiveness": {
+            "type": "string",
+            "enum": OFFER_AGGRESSIVENESS_LEVELS,
+            "description": "How aggressive/competitive this offer is (e.g. a large discount or long free period is High).",
+        },
+        "duration": {
+            "type": "string",
+            "enum": OFFER_DURATIONS,
+            "description": "Whether the offer is explicitly time-limited or appears to be a standing/ongoing offer.",
+        },
+        "moneris_gap": {
+            "type": "string",
+            "enum": OFFER_MONERIS_GAP_VALUES,
+            "description": (
+                f"Whether {TARGET_COMPANY} currently matches this offer: 'Yes' if {TARGET_COMPANY} "
+                f"has an equivalent, 'No' if it has nothing comparable, 'Partial' if it has something "
+                f"similar but weaker/narrower."
+            ),
+        },
+        "description": {
+            "type": "string",
+            "description": "One concise sentence describing the offer or promotion itself.",
+        },
+    },
+    "required": ["offer_type", "target_segment", "aggressiveness", "duration", "moneris_gap", "description"],
+    "additionalProperties": False,
+}
+
+
+def analyze_offer_change(competitor: str, page_label: str, url: str, diff_text: str) -> dict:
+    """Classify a detected change on a competitor's pricing/promo page as an offer or promotion."""
+    prompt = f"""You are a pricing and promotions analyst for {TARGET_COMPANY}.
+
+About {TARGET_COMPANY}:
+{TARGET_COMPANY_CONTEXT}
+
+{TARGET_COMPANY} currently has no buy-now-pay-later (BNPL) product, no free hardware
+giveaway program, and no cashback program; it does offer interchange-plus and blended
+pricing, terminal lease/bundle options, and standard SMB onboarding support.
+
+A change was detected on {competitor}'s pricing/promotions page.
+
+Source: {page_label} ({url})
+DIFF (lines starting with "-" were removed, lines starting with "+" were added):
+---
+{diff_text}
+---
+
+Classify the offer or promotion this change represents. If the diff doesn't describe an
+actual promotional offer (e.g. it's just wording or layout changes with no discount,
+trial, waiver, or incentive), still fill in every field as best you can based on
+whatever pricing/promotional content is present — pick the closest offer_type and note
+in description that no new incentive was found."""
+
+    return _create(_OFFER_SCHEMA, prompt)
 
 
 # ---------------------------------------------------------------------------
