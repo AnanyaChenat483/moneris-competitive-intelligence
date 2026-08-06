@@ -259,48 +259,9 @@ hr { border-color: #1E293B !important; }
 .sc-video-date { font-size: .68rem; color: #475569; margin: 2px 0 4px; }
 .sc-video-desc { font-size: .78rem; color: #64748B; line-height: 1.4; }
 
-/* ── News cards (compact) ───────────────────────────────── */
-.nc {
-    display: flex; align-items: flex-start; gap: 10px;
-    background: #131A2E; border: 1px solid #1E293B; border-left: 3px solid #475569;
-    border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
-}
-.nc-body { flex: 1; min-width: 0; }
-.nc-hl-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.nc-hl { font-size: .86rem; font-weight: 700; color: #E2E8F0; text-decoration: none; line-height: 1.3; }
+/* ── News headline link (news cards otherwise reuse .rv-* — see below) ── */
+.nc-hl { font-size: .95rem; font-weight: 700; color: #E2E8F0; text-decoration: none; line-height: 1.4; }
 .nc-hl:hover { color: #00D4AA; }
-.nc-icon { font-size: .8rem; margin-right: 3px; }
-.nc-meta { font-size: .7rem; color: #475569; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nc-meta .nc-comp { font-weight: 700; }
-.nc-sum {
-    font-size: .78rem; color: #64748B; line-height: 1.35; margin-top: 3px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.nc-rel-badge {
-    flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: .72rem; font-weight: 800; color: #0B0F1A;
-}
-
-/* ── Top stories banner ─────────────────────────────────── */
-.top-stories {
-    background: linear-gradient(135deg, rgba(0,212,170,.09), rgba(0,212,170,.02));
-    border: 1px solid rgba(0,212,170,.25); border-radius: 12px;
-    padding: 14px 16px; margin-bottom: 16px;
-}
-.top-stories-title {
-    font-size: .66rem; font-weight: 800; text-transform: uppercase;
-    letter-spacing: .09em; color: #00D4AA; margin-bottom: 10px;
-}
-.top-stories-grid { display: flex; gap: 10px; flex-wrap: wrap; }
-.top-story {
-    flex: 1; min-width: 220px; background: rgba(11,15,26,.55);
-    border-left: 3px solid #475569; border-radius: 6px; padding: 10px 12px;
-}
-.top-story-rank { font-size: .64rem; font-weight: 800; color: #00D4AA; letter-spacing: .06em; margin-bottom: 3px; }
-.top-story-hl { font-size: .82rem; font-weight: 700; color: #E2E8F0; text-decoration: none; line-height: 1.3; }
-.top-story-hl:hover { color: #00D4AA; }
-.top-story-meta { font-size: .68rem; color: #475569; margin-top: 5px; }
 
 /* ── Comparison table ───────────────────────────────────── */
 .cmpt { width: 100%; border-collapse: collapse; font-size: .875rem; }
@@ -383,18 +344,6 @@ def sev_cls(score) -> str:
     return "sc-red"
 
 
-def rel_color(score) -> str:
-    try:
-        s = float(score)
-    except (TypeError, ValueError):
-        return "#475569"
-    if s >= 7:
-        return "#F87171"
-    if s >= 4:
-        return "#FBBF24"
-    return "#34D399"
-
-
 def relevance_level(score) -> str:
     """Bucket a numeric relevance score into High/Medium/Low, using the same
     7/4 thresholds as rel_color/impact_cls/score_cls elsewhere in the app."""
@@ -417,6 +366,22 @@ _IMPACT_TYPE_ICONS = {
     "funding": "💵",
     "other": "📰",
 }
+
+_IMPACT_TYPE_PILL_CLS = {
+    "product_launch": "p-teal",
+    "pricing_change": "p-red",
+    "partnership": "p-blue",
+    "policy_change": "p-amber",
+    "funding": "p-green",
+    "other": "p-grey",
+}
+
+
+def impact_type_pill(impact_type: str) -> str:
+    it = impact_type or "other"
+    icon = _IMPACT_TYPE_ICONS.get(it, "📰")
+    cls = _IMPACT_TYPE_PILL_CLS.get(it, "p-grey")
+    return f'<span class="pill {cls}">{icon} {_e(it.replace("_", " "))}</span>'
 
 
 def change_type_pill(ct: str) -> str:
@@ -1279,65 +1244,6 @@ with tab_ln:
     )
     st.write("")
 
-    # Fetch once, unfiltered — the competitor/impact filters below are applied
-    # in-memory so the same deduped pool powers both the Top Stories banner
-    # (always unfiltered, across all competitors) and the main feed.
-    all_articles = database.get_news_articles(limit=500)
-    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=90)
-    all_articles = [
-        a for a in all_articles
-        if (dt := _parse_news_date(a.get("published_at", ""))) is None or dt >= cutoff_dt
-    ]
-
-    # Collapse near-duplicate stories (e.g. the same press release syndicated
-    # across several outlets) down to one card per story, keeping the
-    # highest-credibility source — grouped per competitor so stories from
-    # different competitors never merge, and scoped separately from the
-    # per-scan storage-side cap (this can surface more than 2 per competitor
-    # across the full 90-day history; it just won't show the same story twice).
-    articles_by_competitor: dict[str, list] = {}
-    for a in all_articles:
-        articles_by_competitor.setdefault(a.get("competitor", ""), []).append(a)
-    all_articles = [
-        a
-        for comp_articles in articles_by_competitor.values()
-        for a in dedupe_articles_by_story(comp_articles)
-    ]
-    # Default sort: relevance first, so the highest-signal stories surface
-    # regardless of when they were published (see requirement: scan by
-    # relevance, not by date).
-    all_articles.sort(key=lambda a: (a.get("relevance_to_moneris", 0), a.get("fetched_at", "")), reverse=True)
-
-    # --- Top Stories This Week: 3 highest-relevance articles across every
-    # competitor from the last 7 days, always unfiltered by the dropdowns below.
-    week_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
-    top_stories = [
-        a for a in all_articles
-        if (dt := _parse_news_date(a.get("published_at", ""))) is not None and dt >= week_cutoff
-    ][:3]
-
-    if top_stories:
-        story_cards = []
-        for i, a in enumerate(top_stories, 1):
-            comp = a.get("competitor") or ""
-            color = COMPETITOR_COLORS.get(comp, "#94A3B8")
-            rel = a.get("relevance_to_moneris", 0)
-            story_cards.append(
-                f'<div class="top-story" style="border-left-color:{color}">'
-                f'<div class="top-story-rank">#{i} TOP STORY</div>'
-                f'<a class="top-story-hl" href="{_e(a.get("url") or "#")}" target="_blank">{_e(a.get("headline") or "")}</a>'
-                f'<div class="top-story-meta">{_e(comp)} &nbsp;&#183;&nbsp; Relevance {rel}/10</div>'
-                f'</div>'
-            )
-        st.markdown(
-            '<div class="top-stories">'
-            '<div class="top-stories-title">&#128293; Top Stories This Week</div>'
-            f'<div class="top-stories-grid">{"".join(story_cards)}</div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-    # --- Filters: compact horizontal row ---
     nc1, nc2, nc3 = st.columns(3)
     with nc1:
         news_competitor = st.selectbox("Competitor", ["All"] + COMPETITOR_NAMES, key="news_c")
@@ -1347,13 +1253,33 @@ with tab_ln:
     with nc3:
         news_impact_level = st.selectbox("Impact level", ["All", "High", "Medium", "Low"], key="news_il")
 
-    articles = all_articles
-    if news_competitor != "All":
-        articles = [a for a in articles if a.get("competitor") == news_competitor]
-    if news_impact_type != "All":
-        articles = [a for a in articles if (a.get("impact_type") or "other") == news_impact_type]
+    articles = database.get_news_articles(limit=500, competitor=news_competitor, impact_type=news_impact_type)
+    # Keep only articles from the last 90 days; include articles with unparseable dates
+    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=90)
+    articles = [
+        a for a in articles
+        if (dt := _parse_news_date(a.get("published_at", ""))) is None or dt >= cutoff_dt
+    ]
+
+    # Collapse near-duplicate stories (e.g. the same press release syndicated
+    # across several outlets) down to one card per story, keeping the
+    # highest-credibility source — grouped per competitor so stories from
+    # different competitors never merge.
+    articles_by_competitor: dict[str, list] = {}
+    for a in articles:
+        articles_by_competitor.setdefault(a.get("competitor", ""), []).append(a)
+    articles = [
+        a
+        for comp_articles in articles_by_competitor.values()
+        for a in dedupe_articles_by_story(comp_articles)
+    ]
+
     if news_impact_level != "All":
         articles = [a for a in articles if relevance_level(a.get("relevance_to_moneris", 0)) == news_impact_level]
+
+    # Default sort: relevance first, so the highest-signal stories surface
+    # regardless of when they were published.
+    articles.sort(key=lambda a: (a.get("relevance_to_moneris", 0), a.get("fetched_at", "")), reverse=True)
 
     if not articles:
         msg = (
@@ -1366,34 +1292,43 @@ with tab_ln:
         cards = []
         for a in articles:
             rel = a.get("relevance_to_moneris", 0)
-            rc = rel_color(rel)
+            rc = score_cls(rel)
             comp = a.get("competitor") or ""
-            comp_color = COMPETITOR_COLORS.get(comp, "#94A3B8")
-            icon = _IMPACT_TYPE_ICONS.get(a.get("impact_type") or "other", "📰")
             date_formatted = _format_news_date(a.get("published_at") or "")
             url = _e(a.get("url") or "#")
             hl = _e(a.get("headline") or "")
             src = _e(a.get("source") or "")
             summary = _e(a.get("summary") or "")
 
-            meta_parts = [f'<span class="nc-comp" style="color:{comp_color}">{_e(comp)}</span>']
-            if src:
-                meta_parts.append(src)
-            if date_formatted:
-                meta_parts.append(_e(date_formatted))
-            meta_line = " &nbsp;&#183;&nbsp; ".join(meta_parts)
-
             cards.append(
-                f'<div class="nc" style="border-left-color:{comp_color}">'
-                f'<div class="nc-body">'
-                f'<div class="nc-hl-row">'
-                f'<a class="nc-hl" href="{url}" target="_blank"><span class="nc-icon">{icon}</span>{hl}</a>'
+                f'<div class="rv-card">'
+                # Header: competitor name + impact-type badge left, relevance score right
+                f'<div class="rv-header">'
+                f'<div><div class="rv-name">{_e(comp)}</div>'
+                f'<div style="margin-top:5px">{impact_type_pill(a.get("impact_type"))}</div></div>'
+                f'<div class="rv-sev-wrap">'
+                f'<div class="rv-sev-num {rc}">{rel}</div>'
+                f'<div class="rv-sev-lbl">/ 10 relevance</div>'
                 f'</div>'
-                f'<div class="nc-meta">{meta_line}</div>'
-                + (f'<div class="nc-sum">{summary}</div>' if summary else '')
-                + '</div>'
-                f'<div class="nc-rel-badge" style="background:{rc}">{rel}</div>'
                 f'</div>'
+                # Headline (clickable, links to the source article)
+                + f'<div style="margin-bottom:14px"><a class="nc-hl" href="{url}" target="_blank">{hl}</a></div>'
+                # Metrics: source + published date, two-column like Reviews' metrics row
+                + f'<div class="rv-metrics">'
+                f'<div><div class="rv-metric-lbl">Source</div>'
+                f'<div class="rv-metric-val">{src or "&#8212;"}</div></div>'
+                f'<div><div class="rv-metric-lbl">Published</div>'
+                f'<div class="rv-metric-val">{_e(date_formatted) or "&#8212;"}</div></div>'
+                f'</div>'
+                # Summary, styled like the "Moneris opportunity" callout box
+                + (
+                    f'<div class="rv-opp">'
+                    f'<div class="rv-opp-title">Summary</div>'
+                    f'<div class="rv-opp-text">{summary}</div>'
+                    f'</div>'
+                    if summary else ''
+                )
+                + f'</div>'
             )
 
         st.markdown("".join(cards), unsafe_allow_html=True)
