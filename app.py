@@ -238,6 +238,26 @@ hr { border-color: #1E293B !important; }
 .sc-opp-text { font-size: .86rem; color: #5EEAD4; line-height: 1.5; }
 .sc-footer { font-size: .7rem; color: #374151; margin-top: 12px; }
 
+/* ── Latest videos feed (Social Channels) ──────────────────── */
+.sc-videos { margin-top: 14px; padding-top: 14px; border-top: 1px solid #1E293B; }
+.sc-video-item {
+    display: flex; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+}
+.sc-video-item:last-child { border-bottom: none; }
+.sc-video-thumb {
+    width: 96px; height: 54px; border-radius: 6px; object-fit: cover;
+    flex-shrink: 0; background: #0F172A;
+}
+.sc-video-body { min-width: 0; }
+.sc-video-title a {
+    font-size: .85rem; font-weight: 600; color: #E2E8F0; text-decoration: none;
+    line-height: 1.4; display: block;
+}
+.sc-video-title a:hover { color: #00D4AA; }
+.sc-video-date { font-size: .68rem; color: #475569; margin: 2px 0 4px; }
+.sc-video-desc { font-size: .78rem; color: #64748B; line-height: 1.4; }
+
 /* ── News cards ─────────────────────────────────────────── */
 .nc {
     background: #131A2E; border: 1px solid #1E293B; border-radius: 10px;
@@ -381,8 +401,19 @@ def _parse_news_date(date_str: str):
         return email.utils.parsedate_to_datetime(date_str)
     except Exception:
         pass
-    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S+00:00",
-                "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+    try:
+        # Handles YouTube's "+00:00"-suffixed ISO format natively — the old
+        # fixed-width strptime patterns below sliced date_str to len(fmt),
+        # which silently mismatched "+00:00" (a variable-width literal) and
+        # fell through to the raw YYYY-MM-DD fallback instead of parsing it.
+        dt = datetime.fromisoformat(date_str)
+        # Force UTC if the string had no offset, matching the strptime
+        # branches below — callers compare this against aware cutoffs.
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
         try:
             dt = datetime.strptime(date_str[:len(fmt)], fmt)
             return dt.replace(tzinfo=timezone.utc)
@@ -1712,6 +1743,37 @@ with tab_sc:
                     f'YouTube: {rec.get("youtube_signal_count", 0)}'
                 )
 
+                videos = rec.get("youtube_videos") or []
+                if videos:
+                    video_items_html = "".join(
+                        f'<div class="sc-video-item">'
+                        + (
+                            f'<img class="sc-video-thumb" src="{_e(v["thumbnail_url"])}" alt="">'
+                            if v.get("thumbnail_url") else
+                            '<div class="sc-video-thumb"></div>'
+                        )
+                        + f'<div class="sc-video-body">'
+                        f'<div class="sc-video-title"><a href="{_e(v["url"])}" target="_blank">{_e(v["title"])}</a></div>'
+                        f'<div class="sc-video-date">{_e(_format_news_date(v.get("published_at", "")))}</div>'
+                        + (f'<div class="sc-video-desc">{_e(v["description"])}</div>' if v.get("description") else "")
+                        + f'</div>'
+                        f'</div>'
+                        for v in videos
+                    )
+                    videos_section = (
+                        f'<div class="sc-videos">'
+                        f'<div class="sc-field-label" style="margin-top:0">Latest Videos</div>'
+                        f'{video_items_html}'
+                        f'</div>'
+                    )
+                else:
+                    videos_section = (
+                        f'<div class="sc-videos">'
+                        f'<div class="sc-field-label" style="margin-top:0">Latest Videos</div>'
+                        f'<div style="color:#374151;font-size:.82rem">No videos available.</div>'
+                        f'</div>'
+                    )
+
                 cards.append(
                     f'<div class="sc-card">'
                     f'<div class="sc-header">'
@@ -1733,7 +1795,9 @@ with tab_sc:
                     f'<div class="sc-opp-text">{_e(rec.get("moneris_opportunity", ""))}</div>'
                     f'</div>'
 
-                    f'<div class="sc-footer">{signal_counts} &nbsp;&#183;&nbsp; '
+                    + videos_section
+
+                    + f'<div class="sc-footer">{signal_counts} &nbsp;&#183;&nbsp; '
                     f'Last updated: {_e(rec.get("analyzed_at", ""))}</div>'
                     f'</div>'
                 )

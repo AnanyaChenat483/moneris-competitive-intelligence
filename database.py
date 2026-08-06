@@ -218,7 +218,7 @@ def get_product_intelligence(limit: int = 500, competitor: str = None, moneris_p
 def insert_social_intelligence(competitor: str, messaging_theme: str, campaign_focus: str,
                                  target_segment_signals: list, tone_shift: str,
                                  moneris_opportunity: str, linkedin_signal_count: int,
-                                 youtube_signal_count: int) -> None:
+                                 youtube_signal_count: int, youtube_videos: list = None) -> None:
     now = _now()
     _log(f"insert_social_intelligence({competitor!r}) campaign_focus={campaign_focus!r}")
     try:
@@ -233,6 +233,7 @@ def insert_social_intelligence(competitor: str, messaging_theme: str, campaign_f
                 "moneris_opportunity": moneris_opportunity,
                 "linkedin_signal_count": linkedin_signal_count,
                 "youtube_signal_count": youtube_signal_count,
+                "youtube_videos": youtube_videos or [],
             }
         ).execute()
         _log(f"  -> insert_social_intelligence done, rows_returned={len(resp.data or [])}")

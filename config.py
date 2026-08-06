@@ -151,8 +151,14 @@ MONERIS_PRODUCT_AREAS = [
 # the legacy `?user=` RSS shortcut is unsafe: `user=Stripe` silently
 # resolved to an unrelated channel (old, unconnected music uploads from
 # 2012) rather than Stripe's real channel. Every channel_id below was
-# resolved from the live @handle page's canonical link and confirmed to
-# return that competitor's actual recent uploads before being added.
+# resolved from the live @handle page's canonical link, cross-checked
+# against a web search for the competitor's official channel, and its feed
+# content verified (title and/or recent video titles genuinely match the
+# competitor) before being added. This caught two real traps: a batch of
+# plausible-looking IDs proposed for Stripe/Square/PayPal/Shopify all
+# 404'd (fabricated, despite matching the correct format/length), and
+# @heartland — the first hit for "Heartland" — turned out to be the CBC TV
+# drama series, not Heartland Payment Systems.
 SOCIAL_PAGE_TYPE = "social_intelligence"
 
 SOCIAL_PAGES = {
@@ -172,18 +178,32 @@ SOCIAL_PAGES = {
         "linkedin_query": "Shopify",
         "youtube_channel_id": "UCIv38OrggTu3vNkCAo96-CQ",  # @shopify
     },
-    # Helcim, Nuvei, Clover, and Global Payments were requested for LinkedIn
-    # only (no YouTube channel given) — youtube_channel_id is omitted for
-    # these rather than guessed.
+    # @helcim resolves to the correct channel (confirmed via web search and
+    # its videos, e.g. "What Is Helcim & How Does It Work?") but the feed
+    # endpoint itself returns 404/500 on every attempt — a channel-side
+    # YouTube quirk, not a wrong ID. Included anyway since the ID is
+    # correct; fetch_youtube_uploads degrades gracefully (empty result +
+    # logged error) whenever the feed is unavailable.
     "Helcim": {
         "linkedin_query": "Helcim payments",
+        "youtube_channel_id": "UCeJRrwN3W5sCynCqHB9HF6w",  # @helcim
     },
     "Nuvei": {
         "linkedin_query": "Nuvei",
+        "youtube_channel_id": "UCaSOnJ63SP7STlQQlXAjyNw",  # @nuvei
     },
+    # @clover is confirmed genuine (matches Clover POS branded content:
+    # "Clover Tour for Retail", "Meet Clover Station Duo", etc.) but its
+    # feed intermittently 500s — same graceful-degradation handling as
+    # Helcim covers this.
     "Clover": {
         "linkedin_query": '"Clover" point of sale payments',
+        "youtube_channel_id": "UChBLcixjZLF7u_Xi3t9qBPA",  # @clover
     },
+    # No youtube_channel_id: every handle guess for Global Payments/Heartland
+    # either 404'd or (for @heartland specifically) resolved to an unrelated
+    # channel — the CBC TV drama "Heartland", not Heartland Payment Systems.
+    # No genuine official channel was found. LinkedIn-only for this competitor.
     "Global Payments": {
         "linkedin_query": "Global Payments Canada",
     },

@@ -62,7 +62,10 @@ ALTER TABLE product_intelligence DISABLE ROW LEVEL SECURITY;
 -- News proxy — LinkedIn has no public post feed for unauthenticated requests) and
 -- YouTube signal into 5 fields. One row per scan per competitor; powers the Social
 -- Channels tab. target_segment_signals is a JSON array since a competitor's social
--- activity can target more than one Moneris segment at once.
+-- activity can target more than one Moneris segment at once. youtube_videos is the
+-- raw last-5-uploads list (video_id, title, url, published_at, thumbnail_url,
+-- description) captured at scan time, shown as the "Latest Videos" feed under each
+-- competitor's card alongside the Claude-generated synthesis above it.
 CREATE TABLE IF NOT EXISTS social_intelligence (
     id                     BIGSERIAL PRIMARY KEY,
     analyzed_at            TEXT NOT NULL,
@@ -73,9 +76,14 @@ CREATE TABLE IF NOT EXISTS social_intelligence (
     tone_shift             TEXT NOT NULL,
     moneris_opportunity    TEXT NOT NULL,
     linkedin_signal_count  INTEGER NOT NULL DEFAULT 0,
-    youtube_signal_count   INTEGER NOT NULL DEFAULT 0
+    youtube_signal_count   INTEGER NOT NULL DEFAULT 0,
+    youtube_videos         JSONB NOT NULL DEFAULT '[]'
 );
 ALTER TABLE social_intelligence DISABLE ROW LEVEL SECURITY;
+
+-- If social_intelligence already exists from an earlier version of this schema
+-- (no youtube_videos column yet), run this instead of the CREATE TABLE above:
+-- ALTER TABLE social_intelligence ADD COLUMN IF NOT EXISTS youtube_videos JSONB NOT NULL DEFAULT '[]';
 
 -- Offers & promotions intelligence: Claude's classification of each detected change
 -- on a competitor's pricing/promo page. One row per detected offer-page change;

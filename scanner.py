@@ -313,6 +313,7 @@ def _scan_social(competitor: str, report) -> dict | None:
         moneris_opportunity=result["moneris_opportunity"],
         linkedin_signal_count=len(linkedin_items),
         youtube_signal_count=len(youtube_items),
+        youtube_videos=youtube_items,
     )
     _log(f"{competitor} / Social: inserted social_intelligence row")
     report(f"    Social signal synthesized: {result['campaign_focus']} / {result['tone_shift']}")
