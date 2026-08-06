@@ -633,6 +633,8 @@ def seed_new_competitors_if_missing() -> bool:
             news_component=float(event["impact_score"]),
             feature_velocity_component=float(event["impact_score"]),
             smb_relevance_component=float(smb_relevance),
+            social_component=float(event["impact_score"]),
+            offers_component=float(event["impact_score"]),
             reason=f"{event['date']}: {event['description']} ({event['source']})",
             scanned_at=f"{event['date']}T00:00:00+00:00",
         )

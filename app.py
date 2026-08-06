@@ -1291,7 +1291,7 @@ with tab_ln:
     else:
         cards = []
         for a in articles:
-            rel = a.get("relevance_to_moneris", 0)
+            rel = float(a.get("relevance_to_moneris") or 0)
             rc = score_cls(rel)
             comp = a.get("competitor") or ""
             date_formatted = _format_news_date(a.get("published_at") or "")
@@ -1307,7 +1307,7 @@ with tab_ln:
                 f'<div><div class="rv-name">{_e(comp)}</div>'
                 f'<div style="margin-top:5px">{impact_type_pill(a.get("impact_type"))}</div></div>'
                 f'<div class="rv-sev-wrap">'
-                f'<div class="rv-sev-num {rc}">{rel}</div>'
+                f'<div class="rv-sev-num {rc}">{rel:.1f}</div>'
                 f'<div class="rv-sev-lbl">/ 10 relevance</div>'
                 f'</div>'
                 f'</div>'
@@ -1539,18 +1539,22 @@ with tab_tr:
                     "News Momentum": row["news_component"],
                     "Feature Velocity": row["feature_velocity_component"],
                     "SMB Relevance": row["smb_relevance_component"],
+                    "Social": row.get("social_component", 5.0),
+                    "Offers": row.get("offers_component", 3.0),
                     "Why": row["reason"],
                     "Last Updated": row["scanned_at"],
                 })
         if rows:
             # ts_headers: logical keys used for tooltip lookup and data access
             # ts_display: HTML shown in the <th>; explicit <br> prevents mid-word breaks
-            ts_headers = ["Competitor", "Score", "App Reviews", "News Score", "Feature Velocity", "SMB Relevance", "Why It Changed", "Last Updated"]
-            ts_display = ["Competitor", "Score", "App<br>Reviews", "News<br>Score", "Feature<br>Velocity", "SMB<br>Relevance", "Why It Changed", "Last Updated"]
+            ts_headers = ["Competitor", "Score", "App Reviews", "News Score", "Feature Velocity", "SMB Relevance", "Social", "Offers", "Why It Changed", "Last Updated"]
+            ts_display = ["Competitor", "Score", "App<br>Reviews", "News<br>Score", "Feature<br>Velocity", "SMB<br>Relevance", "Social", "Offers", "Why It Changed", "Last Updated"]
             ts_tooltips = {
                 "Feature Velocity": "Rate of product/pricing page changes detected",
+                "Social": "Social channel activity — tone shift and campaign focus aggressiveness",
+                "Offers": "Aggressiveness of current promotional offers and pricing incentives",
             }
-            ts_widths = ["9%", "6%", "8%", "6%", "9%", "7%", "48%", "7%"]
+            ts_widths = ["8%", "5%", "6%", "5%", "7%", "6%", "6%", "6%", "44%", "7%"]
             colgroup = "".join(f'<col style="width:{w}">' for w in ts_widths)
             ths_html = "".join(
                 f'<th title="{ts_tooltips[h]}" style="cursor:help;text-decoration:underline dotted #475569">{disp}</th>'
@@ -1579,6 +1583,8 @@ with tab_tr:
                     f'<td style="text-align:center;color:#94A3B8">{float(r["News Momentum"]):.1f}</td>'
                     f'<td style="text-align:center;color:#94A3B8">{float(r["Feature Velocity"]):.1f}</td>'
                     f'<td style="text-align:center;color:#94A3B8">{float(r["SMB Relevance"]):.1f}</td>'
+                    f'<td style="text-align:center;color:#94A3B8">{float(r["Social"]):.1f}</td>'
+                    f'<td style="text-align:center;color:#94A3B8">{float(r["Offers"]):.1f}</td>'
                     f'<td style="white-space:normal;word-break:break-word;line-height:1.5;color:#CBD5E1">{_e(r["Why"])}</td>'
                     f'<td style="color:#64748B;font-size:.78rem;white-space:nowrap">{_e(date_only)}</td>'
                     f'</tr>'
@@ -1590,6 +1596,48 @@ with tab_tr:
                 + "".join(ts_rows)
                 + "</table>",
                 unsafe_allow_html=True,
+            )
+
+        st.write("")
+        with st.expander("How Threat Scores Are Calculated", expanded=False):
+            st.markdown(
+                '<div style="font-size:1rem;font-weight:700;color:#F1F5F9;margin-bottom:4px">'
+                'Threat Score Formula</div>'
+                '<div style="font-size:.82rem;color:#64748B;margin-bottom:16px;line-height:1.5">'
+                'Weighted composite score across 6 intelligence signals &nbsp;&#183;&nbsp; '
+                'Scale: 1 to 10, Higher = Greater competitive threat to Moneris'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+            methodology_rows = [
+                ("App Review Sentiment", "20%", "Real merchant feedback and satisfaction from Google Play Store reviews"),
+                ("News Momentum", "20%", "Volume and relevance of recent news, partnerships, and market announcements"),
+                ("Feature Velocity", "15%", "Rate and impact of pricing and product page changes detected"),
+                ("SMB Relevance", "20%", "How directly this competitor targets Moneris's core SMB merchant base"),
+                ("Social Channel Activity", "15%", "Aggressiveness of messaging, campaign focus, and tone shifts on social media"),
+                ("Offers & Promotions", "10%", "Aggressiveness of current promotional offers and pricing incentives"),
+            ]
+            method_rows_html = "".join(
+                f'<tr>'
+                f'<td style="font-weight:700;color:#E2E8F0">{_e(name)}</td>'
+                f'<td style="text-align:center"><span class="pill p-teal">{_e(weight)}</span></td>'
+                f'<td style="color:#94A3B8">{_e(desc)}</td>'
+                f'</tr>'
+                for name, weight, desc in methodology_rows
+            )
+            st.markdown(
+                '<table class="wct"><colgroup>'
+                '<col style="width:22%"><col style="width:10%"><col style="width:68%">'
+                '</colgroup>'
+                '<tr><th>Signal</th><th>Weight</th><th>What it measures</th></tr>'
+                + method_rows_html
+                + '</table>',
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Scores are recalculated on every full scan and attributed with a plain-English "
+                "explanation of what drove the change."
             )
 
         with st.expander("Historical events (seed data)"):

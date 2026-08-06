@@ -412,12 +412,17 @@ COMPARISON_DIMENSIONS = [
 # ---------------------------------------------------------------------------
 # Feature 2: Threat scoring engine
 # ---------------------------------------------------------------------------
-# Weighted average components (must sum to 1.0)
+# Weighted average across 6 intelligence signals (must sum to 1.0). Rebalanced
+# when Social Channels and Offers & Promotions were added as full data layers:
+# the original 4 components were each reduced proportionally to make room for
+# the two new ones rather than being reweighted arbitrarily.
 THREAT_WEIGHTS = {
-    "review_sentiment": 0.30,
-    "news_momentum": 0.25,
-    "feature_velocity": 0.20,
-    "smb_relevance": 0.25,
+    "review_sentiment": 0.20,
+    "news_momentum": 0.20,
+    "feature_velocity": 0.15,
+    "smb_relevance": 0.20,
+    "social_activity": 0.15,
+    "offers_aggressiveness": 0.10,
 }
 
 # Static SMB-relevance rating (1-10) reflecting how directly each competitor

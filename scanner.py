@@ -39,6 +39,37 @@ from social_client import SocialFetchError, fetch_linkedin_signal, fetch_youtube
 
 FEATURE_VELOCITY_BASELINE = 2.0  # used when no website changes detected this scan
 NEWS_MOMENTUM_BASELINE = 3.0  # used when no news articles are available this scan
+SOCIAL_ACTIVITY_BASELINE = 5.0  # used when no social signal is available at all, this scan or historically
+OFFERS_AGGRESSIVENESS_BASELINE = 3.0  # used when no offer has ever been detected for this competitor
+
+# Maps Claude's social_intelligence categorical fields to a 1-10 numeric score
+# (higher = more competitive threat). Averaged together for the social
+# component: tone_shift signals urgency, campaign_focus signals what kind of
+# push it is (a merchant-acquisition or product-launch push is more directly
+# threatening to Moneris than brand-awareness or thought-leadership content).
+_TONE_SHIFT_SCORES = {"More aggressive": 9.0, "Stable": 5.0, "Retreating": 2.0}
+_CAMPAIGN_FOCUS_SCORES = {
+    "Merchant acquisition": 8.0,
+    "Product launch": 7.0,
+    "Thought leadership": 4.0,
+    "Brand awareness": 3.0,
+}
+
+# Maps offers_intelligence.aggressiveness to a 1-10 numeric score.
+_OFFER_AGGRESSIVENESS_SCORES = {"High": 9.0, "Medium": 5.5, "Low": 2.5}
+
+
+def _social_activity_score(social_result: dict) -> float:
+    tone = _TONE_SHIFT_SCORES.get((social_result or {}).get("tone_shift"), 5.0)
+    focus = _CAMPAIGN_FOCUS_SCORES.get((social_result or {}).get("campaign_focus"), 5.0)
+    return (tone + focus) / 2
+
+
+def _offers_aggressiveness_score(offers: list[dict]) -> float:
+    if not offers:
+        return OFFERS_AGGRESSIVENESS_BASELINE
+    scores = [_OFFER_AGGRESSIVENESS_SCORES.get(o.get("aggressiveness"), 5.0) for o in offers]
+    return sum(scores) / len(scores)
 
 
 # Streamlit Cloud captures stdout — use print(flush=True) so these show up in
@@ -500,9 +531,10 @@ def _scan_news(competitor: str, report) -> list[dict]:
     return enriched
 
 
-def _compute_threat_score(competitor: str, website_changes: list[dict],
-                            sentiment: dict, news: list[dict]) -> tuple[float, dict]:
-    """Compute the weighted threat score and its components for a competitor."""
+def _compute_threat_score(competitor: str, website_changes: list[dict], sentiment: dict,
+                            news: list[dict], social_result: dict | None,
+                            offers_this_scan: list[dict]) -> tuple[float, dict]:
+    """Compute the weighted threat score and its 6 components for a competitor."""
     review_component = sentiment["severity_score"]
 
     if news:
@@ -517,12 +549,40 @@ def _compute_threat_score(competitor: str, website_changes: list[dict],
 
     smb_relevance_component = SMB_RELEVANCE.get(competitor, 5)
 
+    # Social intelligence is resynthesized fresh every scan (no diffing), so
+    # social_result is usually populated; fall back to the most recently
+    # stored row if this scan's fetch/analysis failed, then to a neutral
+    # baseline if nothing has ever been stored for this competitor.
+    if social_result:
+        social_component = _social_activity_score(social_result)
+    else:
+        try:
+            stored_social = database.get_latest_social_intelligence().get(competitor)
+        except Exception:
+            stored_social = None
+        social_component = _social_activity_score(stored_social) if stored_social else SOCIAL_ACTIVITY_BASELINE
+
+    # Offers pages rarely change scan-to-scan, so offers_this_scan (new
+    # detections only) is empty most of the time — use the most recently
+    # stored offers for this competitor instead (this already reflects any
+    # of this scan's fresh detections too, since _scan_offers inserts before
+    # this runs), which keeps the signal alive between the infrequent page
+    # changes that actually trigger detection, rather than falling back to
+    # baseline on almost every scan.
+    try:
+        recent_offers = database.get_offers_intelligence(limit=10, competitor=competitor)
+    except Exception:
+        recent_offers = offers_this_scan
+    offers_component = _offers_aggressiveness_score(recent_offers)
+
     weights = THREAT_WEIGHTS
     threat_score = (
         weights["review_sentiment"] * review_component
         + weights["news_momentum"] * news_component
         + weights["feature_velocity"] * feature_velocity_component
         + weights["smb_relevance"] * smb_relevance_component
+        + weights["social_activity"] * social_component
+        + weights["offers_aggressiveness"] * offers_component
     )
     threat_score = round(max(1.0, min(10.0, threat_score)), 1)
 
@@ -531,12 +591,15 @@ def _compute_threat_score(competitor: str, website_changes: list[dict],
         "news_component": round(news_component, 1),
         "feature_velocity_component": round(feature_velocity_component, 1),
         "smb_relevance_component": float(smb_relevance_component),
+        "social_component": round(social_component, 1),
+        "offers_component": round(offers_component, 1),
     }
     return threat_score, components
 
 
-def _build_signals_summary(competitor: str, website_changes: list[dict],
-                             sentiment: dict, news: list[dict]) -> str:
+def _build_signals_summary(competitor: str, website_changes: list[dict], sentiment: dict,
+                             news: list[dict], social_result: dict | None,
+                             offers_this_scan: list[dict]) -> str:
     lines = []
 
     if website_changes:
@@ -558,6 +621,21 @@ def _build_signals_summary(competitor: str, website_changes: list[dict],
             lines.append(f"  - (relevance {a['relevance_to_moneris']}/10) {a['headline']} - {a['summary']}")
     else:
         lines.append("No news articles found this scan.")
+
+    if social_result:
+        lines.append(
+            f"Social channel activity: {social_result['campaign_focus']} focus, "
+            f"tone {social_result['tone_shift'].lower()}. {social_result['messaging_theme']}"
+        )
+    else:
+        lines.append("No social channel signal available this scan.")
+
+    if offers_this_scan:
+        lines.append("Offers/promotions detected this scan:")
+        for o in offers_this_scan:
+            lines.append(f"  - ({o['offer_type']}, {o['aggressiveness']} aggressiveness) {o['description']}")
+    else:
+        lines.append("No new offers or promotions detected this scan.")
 
     return "\n".join(lines)
 
@@ -624,14 +702,16 @@ def run_scan(progress_callback=None) -> dict:
         website_changes = website_changes + product_changes
 
         try:
-            _scan_social(competitor, report)
+            social_result = _scan_social(competitor, report)
         except Exception as exc:
             errors.append(f"{competitor}: social scan failed ({exc})")
+            social_result = None
 
         try:
-            _scan_offers(competitor, report)
+            offers_this_scan = _scan_offers(competitor, report)
         except Exception as exc:
             errors.append(f"{competitor}: offers scan failed ({exc})")
+            offers_this_scan = []
 
         try:
             sentiment = _scan_reviews(competitor, report)
@@ -650,12 +730,16 @@ def run_scan(progress_callback=None) -> dict:
             errors.append(f"{competitor}: news analysis failed ({exc})")
             news = []
 
-        threat_score, components = _compute_threat_score(competitor, website_changes, sentiment, news)
+        threat_score, components = _compute_threat_score(
+            competitor, website_changes, sentiment, news, social_result, offers_this_scan
+        )
 
         prior = prior_scores.get(competitor)
         prior_score_value = prior["threat_score"] if prior else None
 
-        signals_summary = _build_signals_summary(competitor, website_changes, sentiment, news)
+        signals_summary = _build_signals_summary(
+            competitor, website_changes, sentiment, news, social_result, offers_this_scan
+        )
 
         try:
             reason = explain_threat_score_change(competitor, prior_score_value, threat_score, signals_summary)
@@ -670,6 +754,8 @@ def run_scan(progress_callback=None) -> dict:
             news_component=components["news_component"],
             feature_velocity_component=components["feature_velocity_component"],
             smb_relevance_component=components["smb_relevance_component"],
+            social_component=components["social_component"],
+            offers_component=components["offers_component"],
             reason=reason,
         )
 

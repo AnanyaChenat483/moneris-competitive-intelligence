@@ -390,7 +390,9 @@ def get_news_articles(limit: int = 100, competitor: str = None, impact_type: str
 
 def insert_threat_score(competitor: str, threat_score: float, review_component: float,
                           news_component: float, feature_velocity_component: float,
-                          smb_relevance_component: float, reason: str, scanned_at: str = None) -> None:
+                          smb_relevance_component: float, reason: str,
+                          social_component: float = None, offers_component: float = None,
+                          scanned_at: str = None) -> None:
     try:
         _client().table("threat_scores").insert(
             {
@@ -401,6 +403,10 @@ def insert_threat_score(competitor: str, threat_score: float, review_component: 
                 "news_component": news_component,
                 "feature_velocity_component": feature_velocity_component,
                 "smb_relevance_component": smb_relevance_component,
+                # Defaults mirror scanner.SOCIAL_ACTIVITY_BASELINE / OFFERS_AGGRESSIVENESS_BASELINE,
+                # used only by callers (e.g. seed_data) that don't compute these themselves.
+                "social_component": social_component if social_component is not None else 5.0,
+                "offers_component": offers_component if offers_component is not None else 3.0,
                 "reason": reason,
             }
         ).execute()

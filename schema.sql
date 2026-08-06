@@ -140,6 +140,9 @@ ALTER TABLE news_articles DISABLE ROW LEVEL SECURITY;
 
 -- Threat scores: weighted composite score per competitor per scan run
 -- Column is named reddit_component for historical reasons; it stores the app review sentiment component.
+-- social_component / offers_component were added when Social Channels and
+-- Offers & Promotions became full threat-score signals (see THREAT_WEIGHTS
+-- in config.py) — both 1-10, same scale as the other four components.
 CREATE TABLE IF NOT EXISTS threat_scores (
     id                          BIGSERIAL PRIMARY KEY,
     scanned_at                  TEXT NOT NULL,
@@ -149,9 +152,17 @@ CREATE TABLE IF NOT EXISTS threat_scores (
     news_component              REAL NOT NULL,
     feature_velocity_component  REAL NOT NULL,
     smb_relevance_component     REAL NOT NULL,
+    social_component            REAL NOT NULL DEFAULT 5.0,
+    offers_component            REAL NOT NULL DEFAULT 3.0,
     reason                      TEXT NOT NULL
 );
 ALTER TABLE threat_scores DISABLE ROW LEVEL SECURITY;
+
+-- If threat_scores already exists from an earlier version of this schema
+-- (no social_component/offers_component columns yet), run this instead of
+-- the CREATE TABLE above:
+-- ALTER TABLE threat_scores ADD COLUMN IF NOT EXISTS social_component REAL NOT NULL DEFAULT 5.0;
+-- ALTER TABLE threat_scores ADD COLUMN IF NOT EXISTS offers_component REAL NOT NULL DEFAULT 3.0;
 
 -- Comparison cards: AI-generated Moneris vs all competitors card per scan
 CREATE TABLE IF NOT EXISTS comparison_cards (
