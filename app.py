@@ -259,22 +259,48 @@ hr { border-color: #1E293B !important; }
 .sc-video-date { font-size: .68rem; color: #475569; margin: 2px 0 4px; }
 .sc-video-desc { font-size: .78rem; color: #64748B; line-height: 1.4; }
 
-/* ── News cards ─────────────────────────────────────────── */
+/* ── News cards (compact) ───────────────────────────────── */
 .nc {
-    background: #131A2E; border: 1px solid #1E293B; border-radius: 10px;
-    padding: 14px 18px; margin-bottom: 10px;
+    display: flex; align-items: flex-start; gap: 10px;
+    background: #131A2E; border: 1px solid #1E293B; border-left: 3px solid #475569;
+    border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
 }
-.nc-hl { margin-bottom: 7px; }
-.nc-hl a { font-size: .93rem; font-weight: 600; color: #E2E8F0; text-decoration: none; line-height: 1.4; }
-.nc-hl a:hover { color: #00D4AA; }
-.nc-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 5px; }
-.nc-src { font-size: .72rem; color: #475569; }
-.nc-sum { font-size: .82rem; color: #64748B; line-height: 1.5; margin-top: 4px; }
-.rel-wrap { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
-.rel-label { font-size: .64rem; font-weight: 700; color: #374151; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
-.rel-bg { flex: 1; height: 4px; background: #1E293B; border-radius: 99px; overflow: hidden; }
-.rel-fill { height: 100%; border-radius: 99px; }
-.rel-num { font-size: .72rem; font-weight: 700; color: #64748B; min-width: 30px; text-align: right; }
+.nc-body { flex: 1; min-width: 0; }
+.nc-hl-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.nc-hl { font-size: .86rem; font-weight: 700; color: #E2E8F0; text-decoration: none; line-height: 1.3; }
+.nc-hl:hover { color: #00D4AA; }
+.nc-icon { font-size: .8rem; margin-right: 3px; }
+.nc-meta { font-size: .7rem; color: #475569; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nc-meta .nc-comp { font-weight: 700; }
+.nc-sum {
+    font-size: .78rem; color: #64748B; line-height: 1.35; margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nc-rel-badge {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .72rem; font-weight: 800; color: #0B0F1A;
+}
+
+/* ── Top stories banner ─────────────────────────────────── */
+.top-stories {
+    background: linear-gradient(135deg, rgba(0,212,170,.09), rgba(0,212,170,.02));
+    border: 1px solid rgba(0,212,170,.25); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 16px;
+}
+.top-stories-title {
+    font-size: .66rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .09em; color: #00D4AA; margin-bottom: 10px;
+}
+.top-stories-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.top-story {
+    flex: 1; min-width: 220px; background: rgba(11,15,26,.55);
+    border-left: 3px solid #475569; border-radius: 6px; padding: 10px 12px;
+}
+.top-story-rank { font-size: .64rem; font-weight: 800; color: #00D4AA; letter-spacing: .06em; margin-bottom: 3px; }
+.top-story-hl { font-size: .82rem; font-weight: 700; color: #E2E8F0; text-decoration: none; line-height: 1.3; }
+.top-story-hl:hover { color: #00D4AA; }
+.top-story-meta { font-size: .68rem; color: #475569; margin-top: 5px; }
 
 /* ── Comparison table ───────────────────────────────────── */
 .cmpt { width: 100%; border-collapse: collapse; font-size: .875rem; }
@@ -367,6 +393,30 @@ def rel_color(score) -> str:
     if s >= 4:
         return "#FBBF24"
     return "#34D399"
+
+
+def relevance_level(score) -> str:
+    """Bucket a numeric relevance score into High/Medium/Low, using the same
+    7/4 thresholds as rel_color/impact_cls/score_cls elsewhere in the app."""
+    try:
+        s = float(score)
+    except (TypeError, ValueError):
+        return "Low"
+    if s >= 7:
+        return "High"
+    if s >= 4:
+        return "Medium"
+    return "Low"
+
+
+_IMPACT_TYPE_ICONS = {
+    "product_launch": "🚀",
+    "pricing_change": "💰",
+    "partnership": "🤝",
+    "policy_change": "📋",
+    "funding": "💵",
+    "other": "📰",
+}
 
 
 def change_type_pill(ct: str) -> str:
@@ -1229,18 +1279,13 @@ with tab_ln:
     )
     st.write("")
 
-    nc1, nc2 = st.columns(2)
-    with nc1:
-        news_competitor = st.selectbox("Competitor", ["All"] + COMPETITOR_NAMES, key="news_c")
-    with nc2:
-        impact_types = ["All", "pricing_change", "product_launch", "policy_change", "funding", "partnership", "other"]
-        news_impact_type = st.selectbox("Impact type", impact_types, key="news_it")
-
-    articles = database.get_news_articles(limit=500, competitor=news_competitor, impact_type=news_impact_type)
-    # Keep only articles from the last 90 days; include articles with unparseable dates
+    # Fetch once, unfiltered — the competitor/impact filters below are applied
+    # in-memory so the same deduped pool powers both the Top Stories banner
+    # (always unfiltered, across all competitors) and the main feed.
+    all_articles = database.get_news_articles(limit=500)
     cutoff_dt = datetime.now(timezone.utc) - timedelta(days=90)
-    articles = [
-        a for a in articles
+    all_articles = [
+        a for a in all_articles
         if (dt := _parse_news_date(a.get("published_at", ""))) is None or dt >= cutoff_dt
     ]
 
@@ -1251,65 +1296,103 @@ with tab_ln:
     # per-scan storage-side cap (this can surface more than 2 per competitor
     # across the full 90-day history; it just won't show the same story twice).
     articles_by_competitor: dict[str, list] = {}
-    for a in articles:
+    for a in all_articles:
         articles_by_competitor.setdefault(a.get("competitor", ""), []).append(a)
-    articles = [
+    all_articles = [
         a
         for comp_articles in articles_by_competitor.values()
         for a in dedupe_articles_by_story(comp_articles)
     ]
-    articles.sort(key=lambda a: (a.get("relevance_to_moneris", 0), a.get("fetched_at", "")), reverse=True)
+    # Default sort: relevance first, so the highest-signal stories surface
+    # regardless of when they were published (see requirement: scan by
+    # relevance, not by date).
+    all_articles.sort(key=lambda a: (a.get("relevance_to_moneris", 0), a.get("fetched_at", "")), reverse=True)
+
+    # --- Top Stories This Week: 3 highest-relevance articles across every
+    # competitor from the last 7 days, always unfiltered by the dropdowns below.
+    week_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    top_stories = [
+        a for a in all_articles
+        if (dt := _parse_news_date(a.get("published_at", ""))) is not None and dt >= week_cutoff
+    ][:3]
+
+    if top_stories:
+        story_cards = []
+        for i, a in enumerate(top_stories, 1):
+            comp = a.get("competitor") or ""
+            color = COMPETITOR_COLORS.get(comp, "#94A3B8")
+            rel = a.get("relevance_to_moneris", 0)
+            story_cards.append(
+                f'<div class="top-story" style="border-left-color:{color}">'
+                f'<div class="top-story-rank">#{i} TOP STORY</div>'
+                f'<a class="top-story-hl" href="{_e(a.get("url") or "#")}" target="_blank">{_e(a.get("headline") or "")}</a>'
+                f'<div class="top-story-meta">{_e(comp)} &nbsp;&#183;&nbsp; Relevance {rel}/10</div>'
+                f'</div>'
+            )
+        st.markdown(
+            '<div class="top-stories">'
+            '<div class="top-stories-title">&#128293; Top Stories This Week</div>'
+            f'<div class="top-stories-grid">{"".join(story_cards)}</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    # --- Filters: compact horizontal row ---
+    nc1, nc2, nc3 = st.columns(3)
+    with nc1:
+        news_competitor = st.selectbox("Competitor", ["All"] + COMPETITOR_NAMES, key="news_c")
+    with nc2:
+        impact_types = ["All", "pricing_change", "product_launch", "policy_change", "funding", "partnership", "other"]
+        news_impact_type = st.selectbox("Impact type", impact_types, key="news_it")
+    with nc3:
+        news_impact_level = st.selectbox("Impact level", ["All", "High", "Medium", "Low"], key="news_il")
+
+    articles = all_articles
+    if news_competitor != "All":
+        articles = [a for a in articles if a.get("competitor") == news_competitor]
+    if news_impact_type != "All":
+        articles = [a for a in articles if (a.get("impact_type") or "other") == news_impact_type]
+    if news_impact_level != "All":
+        articles = [a for a in articles if relevance_level(a.get("relevance_to_moneris", 0)) == news_impact_level]
 
     if not articles:
-        st.info("No news articles from the last 90 days. Run a scan to fetch the latest news.")
+        msg = (
+            "No news articles match the selected filters."
+            if news_competitor != "All" or news_impact_type != "All" or news_impact_level != "All"
+            else "No news articles from the last 90 days. Run a scan to fetch the latest news."
+        )
+        st.info(msg)
     else:
-        impact_pill_cls = {
-            "pricing_change": "p-red",
-            "product_launch": "p-teal",
-            "policy_change": "p-amber",
-            "funding": "p-green",
-            "partnership": "p-blue",
-            "other": "p-grey",
-        }
-        sw_pill_cls = {"high": "p-teal", "medium": "p-amber", "low": "p-grey"}
-
         cards = []
         for a in articles:
             rel = a.get("relevance_to_moneris", 0)
             rc = rel_color(rel)
-            pct = min(100, int(rel * 10))
-            it_raw = a.get("impact_type") or "other"
-            it_label = it_raw.replace("_", " ")
-            it_cls = impact_pill_cls.get(it_raw, "p-grey")
+            comp = a.get("competitor") or ""
+            comp_color = COMPETITOR_COLORS.get(comp, "#94A3B8")
+            icon = _IMPACT_TYPE_ICONS.get(a.get("impact_type") or "other", "📰")
             date_formatted = _format_news_date(a.get("published_at") or "")
-            sw = a.get("source_weight") or ""
-            sw_html = f'<span class="pill {sw_pill_cls.get(sw, "p-grey")}">{_e(sw)}</span>' if sw else ""
             url = _e(a.get("url") or "#")
             hl = _e(a.get("headline") or "")
             src = _e(a.get("source") or "")
             summary = _e(a.get("summary") or "")
-            comp = _e(a.get("competitor") or "")
 
-            date_html = (
-                f'<span class="nc-src">Published {_e(date_formatted)}</span>'
-                if date_formatted else ""
-            )
+            meta_parts = [f'<span class="nc-comp" style="color:{comp_color}">{_e(comp)}</span>']
+            if src:
+                meta_parts.append(src)
+            if date_formatted:
+                meta_parts.append(_e(date_formatted))
+            meta_line = " &nbsp;&#183;&nbsp; ".join(meta_parts)
+
             cards.append(
-                f'<div class="nc">'
-                f'<div class="nc-hl"><a href="{url}" target="_blank">{hl}</a></div>'
-                f'<div class="nc-meta">'
-                f'<span class="comp-badge">{comp}</span>'
-                f'<span class="pill {it_cls}">{_e(it_label)}</span>'
-                f'{sw_html}'
-                + (f'<span class="nc-src">{src}</span>' if src else '')
-                + date_html
-                + f'</div>'
-                + (f'<div class="nc-sum">{summary}</div>' if summary else '')
-                + f'<div class="rel-wrap">'
-                f'<span class="rel-label">Relevance</span>'
-                f'<div class="rel-bg"><div class="rel-fill" style="width:{pct}%;background:{rc}"></div></div>'
-                f'<span class="rel-num">{rel}/10</span>'
+                f'<div class="nc" style="border-left-color:{comp_color}">'
+                f'<div class="nc-body">'
+                f'<div class="nc-hl-row">'
+                f'<a class="nc-hl" href="{url}" target="_blank"><span class="nc-icon">{icon}</span>{hl}</a>'
                 f'</div>'
+                f'<div class="nc-meta">{meta_line}</div>'
+                + (f'<div class="nc-sum">{summary}</div>' if summary else '')
+                + '</div>'
+                f'<div class="nc-rel-badge" style="background:{rc}">{rel}</div>'
                 f'</div>'
             )
 
