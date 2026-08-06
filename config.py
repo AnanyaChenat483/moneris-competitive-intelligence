@@ -1,4 +1,4 @@
-"""Central configuration for the Competitive Intelligence Monitor."""
+"""Central configuration for Moneris Product & Program Competitive Insights."""
 
 import os
 
@@ -326,7 +326,25 @@ REVIEW_MAX_PER_COMPETITOR = 20
 # ---------------------------------------------------------------------------
 NEWS_RSS_URL = "https://news.google.com/rss/search"
 NEWS_QUERY_TEMPLATE = "{competitor} payments Canada"
-NEWS_MAX_ARTICLES_PER_COMPETITOR = 8
+
+# Size of the raw candidate pool pulled from Google News RSS before
+# deduplication — kept generous so the fuzzy story-grouping in
+# news_client.dedupe_articles_by_story has enough real candidates to work
+# with (syndicated copies of the same story are often not adjacent in the
+# RSS result order).
+NEWS_MAX_ARTICLES_PER_COMPETITOR = 20
+
+# Hard cap on new articles processed (classified + inserted) per competitor
+# per scan, applied AFTER deduplication — this is the number that actually
+# reaches Supabase and the Latest News tab per scan run.
+NEWS_MAX_ARTICLES_PER_COMPETITOR_PER_SCAN = 2
+
+# When checking a freshly-fetched candidate against already-stored articles
+# for the same competitor (to stop the same story being re-inserted under a
+# different URL in a later scan), only compare against articles published
+# within this many days — keeps much older, unrelated coverage that happens
+# to share similar wording from being treated as "the same story."
+NEWS_DEDUP_LOOKBACK_DAYS = 14
 
 # Per-competitor news query overrides (falls back to NEWS_QUERY_TEMPLATE)
 # Use these when the default template produces too-generic or redundant queries.
@@ -335,12 +353,48 @@ COMPETITOR_NEWS_QUERIES = {
     "Clover": "Clover POS Canada payments",
 }
 
-# Source weighting for news credibility
+# Source weighting for news credibility (used for the display "high/low" pill)
 HIGH_VALUE_NEWS_SOURCES = [
     "techcrunch", "reuters", "bloomberg", "globe and mail", "the globe and mail",
     "financial post", "wall street journal", "the wall street journal",
     "cnbc", "the verge", "axios", "forbes",
 ]
+
+# Ordered source credibility ranking used for near-duplicate-story
+# deduplication: when multiple articles report the same underlying story,
+# only the single highest-credibility source is kept. Lower index = more
+# credible; any source not listed here ranks last (lowest credibility).
+# Reuters/Bloomberg/WSJ are global top-tier wire/financial press; Globe and
+# Mail/Financial Post are top-tier Canadian outlets (explicitly requested,
+# in this relative order); Yahoo Finance is a lower-tier aggregator that
+# frequently syndicates the same wire story across several of its regional
+# editions (the exact duplication pattern this ranking exists to resolve).
+NEWS_SOURCE_CREDIBILITY_RANK = [
+    "reuters",
+    "bloomberg",
+    "wall street journal", "the wall street journal",
+    "globe and mail", "the globe and mail",
+    "financial post",
+    "techcrunch",
+    "cnbc",
+    "the verge",
+    "axios",
+    "forbes",
+    "yahoo finance", "yahoo! finance",
+]
+
+# Tuned against a real observed duplicate cluster (three syndicated copies of
+# the same "TD Offers Clover Platform in Canada..." story from Yahoo Finance,
+# TradingView, and Yahoo! Finance Canada — identical headline text apart from
+# the trailing " - Source" suffix) alongside genuinely distinct articles that
+# happen to share topical wording (e.g. two independently-written "Clover vs.
+# Square" comparison guides from different publishers scored 0.48 sequence /
+# 0.55 semantic). The true duplicate cluster scored 1.00/1.00; the highest
+# score among real, distinct articles in that same dataset was 0.56/0.55 —
+# these thresholds sit with clear margin above that ceiling so genuinely
+# different articles don't get merged.
+NEWS_DEDUP_SEQUENCE_THRESHOLD = 0.80
+NEWS_DEDUP_SEMANTIC_THRESHOLD = 0.75
 
 # ---------------------------------------------------------------------------
 # Feature 1: Moneris comparison card

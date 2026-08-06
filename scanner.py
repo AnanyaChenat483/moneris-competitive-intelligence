@@ -1,7 +1,9 @@
 """Orchestrates all three data layers, AI analysis, threat scoring, and storage."""
 
 import difflib
+import email.utils
 import hashlib
+from datetime import datetime, timedelta, timezone
 
 import database
 from analyzer import (
@@ -16,6 +18,7 @@ from analyzer import (
 )
 from config import (
     COMPETITORS,
+    NEWS_DEDUP_LOOKBACK_DAYS,
     OFFERS_PAGES,
     PRODUCT_UPDATE_PAGE_TYPE,
     PRODUCT_UPDATE_PAGES,
@@ -23,7 +26,7 @@ from config import (
     SOCIAL_PAGES,
     THREAT_WEIGHTS,
 )
-from news_client import NewsError, fetch_news_for_competitor
+from news_client import NewsError, fetch_news_for_competitor, headlines_match
 from play_reviews import get_reviews_for_competitor
 from scraper import (
     ScrapeError,
@@ -425,8 +428,18 @@ def _scan_reviews(competitor: str, report) -> dict:
     return sentiment
 
 
+def _parse_pubdate(date_str: str):
+    """Parse a Google News RFC 2822 published_at string to an aware datetime, or None."""
+    if not date_str:
+        return None
+    try:
+        return email.utils.parsedate_to_datetime(date_str)
+    except Exception:
+        return None
+
+
 def _scan_news(competitor: str, report) -> list[dict]:
-    """Fetch and classify news articles for a competitor."""
+    """Fetch, deduplicate against recent history, classify, and store news for a competitor."""
     report(f"  [News] Fetching Google News for {competitor}...")
 
     try:
@@ -435,14 +448,41 @@ def _scan_news(competitor: str, report) -> list[dict]:
         report(f"    Error: {exc}")
         return []
 
-    report(f"    Found {len(articles)} article(s).")
+    report(f"    Found {len(articles)} article(s) after within-scan deduplication.")
     if not articles:
         return []
 
-    classifications = analyze_news_batch(competitor, articles)
+    # Cross-scan dedup: fetch_news_for_competitor only dedupes within this
+    # scan's own candidate pool — it can't know that the same story was
+    # already stored (under a different URL) by an earlier scan. Check
+    # recent stored articles for this competitor and skip any new candidate
+    # that's the same story, so a re-syndicated copy doesn't accumulate as a
+    # second near-duplicate row days later.
+    try:
+        recent = database.get_news_articles(limit=50, competitor=competitor)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=NEWS_DEDUP_LOOKBACK_DAYS)
+        recent_headlines = [
+            r["headline"] for r in recent
+            if (dt := _parse_pubdate(r.get("published_at", ""))) is None or dt >= cutoff
+        ]
+    except Exception as exc:
+        report(f"    Warning: could not check recent news history for duplicates ({exc})")
+        recent_headlines = []
+
+    fresh_articles = [
+        a for a in articles
+        if not any(headlines_match(a["headline"], h) for h in recent_headlines)
+    ]
+    skipped = len(articles) - len(fresh_articles)
+    if skipped:
+        report(f"    Skipped {skipped} article(s) already covered by recently stored news.")
+    if not fresh_articles:
+        return []
+
+    classifications = analyze_news_batch(competitor, fresh_articles)
 
     enriched = []
-    for article, classification in zip(articles, classifications):
+    for article, classification in zip(fresh_articles, classifications):
         enriched.append({**article, **classification})
         database.insert_news_article(
             competitor=competitor,

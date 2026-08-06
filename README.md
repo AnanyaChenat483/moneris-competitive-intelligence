@@ -1,4 +1,4 @@
-# Moneris Competitive Intelligence Monitor
+# Moneris Product & Program Competitive Insights
 
 > An AI-powered competitive intelligence system that tracks, analyzes, and synthesizes signals from six Canadian fintech competitors — automatically, weekly, in one dashboard.
 

@@ -1,4 +1,4 @@
-"""Supabase (PostgreSQL) persistence layer for the Competitive Intelligence Monitor.
+"""Supabase (PostgreSQL) persistence layer for Moneris Product & Program Competitive Insights.
 
 Tables must be created in Supabase before first run — execute schema.sql in the
 Supabase SQL Editor (app.supabase.com > SQL Editor).

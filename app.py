@@ -1,4 +1,4 @@
-"""Streamlit dashboard for the Moneris Competitive Intelligence Monitor."""
+"""Streamlit dashboard for Moneris Product & Program Competitive Insights."""
 
 import email.utils
 import html as _html
@@ -25,10 +25,11 @@ from config import (
     SEGMENTS_AFFECTED,
     TARGET_COMPANY,
 )
+from news_client import dedupe_articles_by_story
 from scanner import run_scan
 
 st.set_page_config(
-    page_title="Moneris Competitive Intel",
+    page_title="Moneris Product & Program Competitive Insights",
     page_icon="📊",
     layout="wide",
 )
@@ -565,7 +566,7 @@ def _generate_pdf_report() -> bytes:
     pdf.set_xy(15, 8)
     pdf.set_text_color(0, 212, 170)
     pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(180, 10, "Moneris Competitive Intelligence Brief", align="C",
+    pdf.cell(180, 10, "Moneris Product & Program Competitive Insights Brief", align="C",
              new_x="LMARGIN", new_y="NEXT")
     pdf.set_xy(15, 22)
     pdf.set_text_color(148, 163, 184)
@@ -872,7 +873,7 @@ def _generate_pdf_report() -> bytes:
     pdf.set_text_color(71, 85, 105)
     pdf.set_font("Helvetica", "I", 7)
     pdf.cell(0, 5,
-             _safe_str(f"Moneris Competitive Intelligence  |  Confidential  |  {now.strftime('%Y-%m-%d')}"),
+             _safe_str(f"Moneris Product & Program Competitive Insights  |  Confidential  |  {now.strftime('%Y-%m-%d')}"),
              align="C")
 
     return bytes(pdf.output())
@@ -883,7 +884,8 @@ def _generate_pdf_report() -> bytes:
 # ---------------------------------------------------------------------------
 
 st.markdown(
-    '<div class="app-title">📊 Moneris <span style="color:#00D4AA">Competitive</span> Intel</div>'
+    '<div class="app-title">📊 Moneris Product &amp; Program '
+    '<span style="color:#00D4AA">Competitive Insights</span></div>'
     '<div class="app-tagline">Real-time signals across 8 payment competitors &nbsp;·&nbsp; Powered by Claude AI</div>',
     unsafe_allow_html=True,
 )
@@ -1241,6 +1243,22 @@ with tab_ln:
         a for a in articles
         if (dt := _parse_news_date(a.get("published_at", ""))) is None or dt >= cutoff_dt
     ]
+
+    # Collapse near-duplicate stories (e.g. the same press release syndicated
+    # across several outlets) down to one card per story, keeping the
+    # highest-credibility source — grouped per competitor so stories from
+    # different competitors never merge, and scoped separately from the
+    # per-scan storage-side cap (this can surface more than 2 per competitor
+    # across the full 90-day history; it just won't show the same story twice).
+    articles_by_competitor: dict[str, list] = {}
+    for a in articles:
+        articles_by_competitor.setdefault(a.get("competitor", ""), []).append(a)
+    articles = [
+        a
+        for comp_articles in articles_by_competitor.values()
+        for a in dedupe_articles_by_story(comp_articles)
+    ]
+    articles.sort(key=lambda a: (a.get("relevance_to_moneris", 0), a.get("fetched_at", "")), reverse=True)
 
     if not articles:
         st.info("No news articles from the last 90 days. Run a scan to fetch the latest news.")
